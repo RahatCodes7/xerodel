@@ -1,0 +1,111 @@
+{% extends "admin/base.html" %}
+{% set active = 'products' %}
+{% block title %}Products — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Products</h1>
+    <p>Create products, adjust pricing and control what appears in the shop.</p>
+  </div>
+</div>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Add product</h2>
+    <span class="muted">New products are hidden from the shop until enabled and stocked</span>
+  </div>
+  <form method="post" action="/admin/products" class="form">
+    <div class="form-row form-row-3">
+      <div>
+        <label for="np-title">Title</label>
+        <input id="np-title" name="title" required placeholder="e.g. Telegram Premium (1 month)">
+      </div>
+      <div>
+        <label for="np-platform">Platform</label>
+        <select id="np-platform" name="platform">
+          <option value="telegram">Telegram</option>
+          <option value="crunchyroll">Crunchyroll</option>
+          <option value="cookie">Cookie</option>
+        </select>
+      </div>
+      <div>
+        <label for="np-price">Price (BDT)</label>
+        <input type="number" id="np-price" step="0.01" name="price_bdt" min="0" placeholder="0.00" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="np-desc">Description</label>
+      <textarea id="np-desc" name="description" rows="2" placeholder="Short description shown on the product card"></textarea>
+    </div>
+    <button class="btn btn-primary" type="submit">Add product</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>All products</h2>
+    <div class="toolbar">
+      <input type="search" class="table-filter" placeholder="Search products…" aria-label="Search products" data-filter="#products-grid">
+    </div>
+  </div>
+
+  <div class="product-admin-grid" id="products-grid">
+    {% for p in products %}
+    <article class="prod-card">
+      <div class="prod-card-head">
+        <div class="prod-card-id">
+          <span class="muted">#{{ p.id }}</span>
+          <span class="badge st-{{ 'delivered' if p.is_active else 'cancelled' }}">{{ 'active' if p.is_active else 'disabled' }}</span>
+        </div>
+        <span class="stock-split" title="Available / Assigned / Sold">
+          <span class="a">{{ p.counts.available }}</span>
+          <span class="b">{{ p.counts.assigned }}</span>
+          <span class="c">{{ p.counts.sold }}</span>
+        </span>
+      </div>
+
+      <form method="post" action="/admin/products/{{ p.id }}/edit" class="prod-form">
+        <div class="field">
+          <label for="p{{ p.id }}-title">Title</label>
+          <input id="p{{ p.id }}-title" name="title" value="{{ p.title }}" required>
+        </div>
+        <div class="prod-form-row">
+          <div class="field">
+            <label for="p{{ p.id }}-platform">Platform</label>
+            <select id="p{{ p.id }}-platform" name="platform">
+              <option value="telegram" {% if p.platform == 'telegram' %}selected{% endif %}>Telegram</option>
+              <option value="crunchyroll" {% if p.platform == 'crunchyroll' %}selected{% endif %}>Crunchyroll</option>
+              <option value="cookie" {% if p.platform == 'cookie' %}selected{% endif %}>Cookie</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="p{{ p.id }}-price">Price (BDT)</label>
+            <input type="number" id="p{{ p.id }}-price" step="0.01" name="price_bdt" value="{{ p.price_bdt }}" min="0" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="p{{ p.id }}-desc">Description</label>
+          <textarea id="p{{ p.id }}-desc" name="description" rows="2" placeholder="description">{{ p.description }}</textarea>
+        </div>
+        <div class="prod-form-foot">
+          <span class="muted">Saving updates the shop instantly</span>
+          <div class="actions">
+            <button class="btn btn-sm btn-primary" type="submit">Save changes</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="prod-card-actions">
+        <form method="post" action="/admin/products/{{ p.id }}/toggle">
+          <button class="btn btn-sm" type="submit">{{ 'Disable' if p.is_active else 'Enable' }}</button>
+        </form>
+        <form method="post" action="/admin/products/{{ p.id }}/delete">
+          <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete product? Only allowed when it has no inventory units.')">Delete</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% if not products %}<p class="muted mt-16">No products yet — add your first one above.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "admin/base.html" %}
+{% set active = 'payments' %}
+{% block title %}Payments — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Payments</h1>
+    <p>Verify bKash and Nagad proofs — accepting delivers the order automatically.</p>
+  </div>
+  <div class="head-actions">
+    <span class="badge st-pending">{{ pending|length }} awaiting review</span>
+  </div>
+</div>
+
+{% if request.query_params.get('err') == 'already' %}
+<div class="alert alert-warning" role="alert">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+  <span>That proof was already processed by another admin.</span>
+</div>
+{% endif %}
+{% if request.query_params.get('ok') %}
+<div class="alert alert-success" role="status">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-4.8"/></svg>
+  <span>Done.</span>
+</div>
+{% endif %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>Pending verification (<span id="pending-count-inline">{{ pending|length }}</span>)</h2>
+  </div>
+
+  {% if pending %}
+  <div class="proof-grid">
+    {% for v in pending %}
+    <div class="proof-card">
+      <h3>
+        <a href="/admin/orders/{{ v.order.order_code }}"><code>{{ v.order.order_code }}</code></a>
+        <span class="price" style="font-size:1rem">৳{{ '%d'|format(v.order.total_bdt|int) }}</span>
+      </h3>
+
+      <div class="proof-meta">
+        <div><span class="k">Buyer</span><span>{{ v.buyer.full_name if v.buyer else '?' }}{% if v.buyer and v.buyer.username %} (@{{ v.buyer.username }}){% endif %}</span></div>
+        <div><span class="k">User id</span><code>{{ v.buyer.telegram_id if v.buyer else '' }}</code></div>
+        <div><span class="k">Method</span><span>{{ v.proof.method }}</span></div>
+        <div><span class="k">TrxID</span><code>{{ v.proof.transaction_id }}</code></div>
+        {% if v.proof.sender_number %}<div><span class="k">Sender</span><span>{{ v.proof.sender_number }}</span></div>{% endif %}
+        <div><span class="k">Items</span><span>{% for it in v["items"] %}{{ it.product_title }} × {{ it.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}</span></div>
+      </div>
+
+      {% if v.proof.photo_path or v.proof.photo_file_id %}
+      <a href="/admin/proofs/{{ v.proof.id }}/photo" target="_blank" rel="noopener">
+        <img class="proof-img" src="/admin/proofs/{{ v.proof.id }}/photo" alt="Payment proof screenshot" loading="lazy">
+      </a>
+      {% endif %}
+
+      <form method="post" action="/api/admin/payments/{{ v.order.id }}/decide" class="decide-form">
+        <label for="note-{{ v.order.id }}">Note (optional)</label>
+        <textarea id="note-{{ v.order.id }}" name="note" rows="2" placeholder="Reason shown to buyer on reject"></textarea>
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-success" name="decision" value="accepted" type="submit">Accept</button>
+          <button class="btn btn-danger" name="decision" value="rejected" type="submit">Reject</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 10h19"/></svg>
+    </span>
+    <h3>Nothing to verify</h3>
+    <p>No pending payments right now. New proofs appear here automatically.</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>History</h2>
+    <div class="toolbar">
+      <input type="search" class="table-filter" placeholder="Search history…" aria-label="Search payment history" data-filter="#payments-history">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl" id="payments-history">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Buyer</th>
+          <th>Method</th>
+          <th>TrxID</th>
+          <th class="num">Amount</th>
+          <th>Status</th>
+          <th>Reviewed</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for v in history %}
+        <tr>
+          <td><a href="/admin/orders/{{ v.order.order_code }}"><code>{{ v.order.order_code }}</code></a></td>
+          <td>{{ v.buyer.full_name if v.buyer else '?' }}</td>
+          <td>{{ v.proof.method }}</td>
+          <td><code>{{ v.proof.transaction_id }}</code></td>
+          <td class="num">৳{{ '%d'|format(v.order.total_bdt|int) if v.order else 0 }}</td>
+          <td><span class="badge st-{{ v.proof.status }}">{{ v.proof.status }}</span></td>
+          <td class="muted" style="max-width:260px">{{ v.proof.reviewed_at or '' }}{% if v.proof.note %} — {{ v.proof.note }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not history %}<p class="muted mt-16">No reviewed payments yet.</p>{% endif %}
+</section>
+{% endblock %}

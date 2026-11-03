@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ site.site_name }} — Telegram &amp; Crunchyroll accounts{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-content">
+    <span class="badge badge--plain" style="padding:5px 12px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.6 5.6 6.1.8-4.5 4.3 1.1 6-5.3-3-5.3 3 1.1-6L3.3 9.4l6.1-.8z"/></svg>
+      Premium Store
+    </span>
+    <h1><span class="grad">Premium accounts,</span><br>delivered fast.</h1>
+    <p class="lead">Get the best premium accounts and services with instant delivery and secure payment.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-lg" href="/shop">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h18l-1.4 10.2A2 2 0 0 1 17.6 21H6.4a2 2 0 0 1-2-1.8L3 9z"/><path d="M8 9V6.5a4 4 0 0 1 8 0V9"/></svg>
+        Browse Shop
+      </a>
+      <a class="btn btn-outline btn-lg" href="/login">How it works</a>
+    </div>
+    <p class="hero-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6.5v5c0 5 3.4 8.4 8 9.5 4.6-1.1 8-4.5 8-9.5v-5z"/><path d="m9 12 2 2 4-4"/></svg>
+      Verified payments · Auto delivery · Order tracking in your account
+    </p>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-n" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+      </div>
+      <div class="stat-l">Instant Delivery</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>
+      </div>
+      <div class="stat-l">100% Secure</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.2 7.6L3 21l1.4-5.5A8.5 8.5 0 1 1 21 12z"/></svg>
+      </div>
+      <div class="stat-l">24/7 Support</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6.1.8-4.5 4.3 1.1 6-5.3-3-5.3 3 1.1-6L3.3 9.4l6.1-.8z"/></svg>
+      </div>
+      <div class="stat-l">Trusted by 10K+</div>
+    </div>
+  </div>
+</section>
+
+<section class="steps" aria-label="How it works">
+  <div class="step">
+    <div class="step-n">1</div>
+    <div>
+      <strong>Browse &amp; pick a product</strong>
+      <p>Choose the plan that fits your needs.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-n">2</div>
+    <div>
+      <strong>Pay via bKash/Nagad</strong>
+      <p>Send the exact amount to our number.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-n">3</div>
+    <div>
+      <strong>Submit payment screenshot</strong>
+      <p>Upload the receipt with your TrxID.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-n">4</div>
+    <div>
+      <strong>Get credentials instantly</strong>
+      <p>Access is delivered once verified.</p>
+    </div>
+  </div>
+</section>
+
+{% if products %}
+<section style="padding: 72px var(--gutter) 0">
+  <div class="container" style="padding-top:0;padding-bottom:0">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Catalog</span>
+        <h2 style="margin-top:6px">Featured products</h2>
+      </div>
+      <a href="/shop" class="card-link">
+        View all products
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </a>
+    </div>
+    <div class="grid">
+      {% for p in products %}
+      <article class="card product card-hover">
+        <div class="product-head">
+          <span class="card-platform">{{ labels[p.platform] if labels else p.platform }}</span>
+          <span class="stock-pill {% if p.stock == 0 %}out{% endif %}">{{ p.stock }} left</span>
+        </div>
+        <h3>{{ p.title }}</h3>
+        <p class="desc">{{ p.description[:130] }}{% if p.description|length > 130 %}…{% endif %}</p>
+        <div class="card-footer">
+          <span class="price">৳{{ '%d'|format(p.price_bdt|int) }}</span>
+        </div>
+        <a class="btn btn-primary btn-block" href="/product/{{ p.id }}">View details</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "admin/base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Dashboard — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Store overview, pending payments and recent activity.</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn btn-sm btn-outline" href="/admin/orders">All orders</a>
+    <a class="btn btn-sm btn-primary" href="/admin/payments">Review payments</a>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-l">Total orders</div>
+    <div class="stat-n">{{ stats.orders_total }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Pending payment</div>
+    <div class="stat-n">{{ stats.pending_payment }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Awaiting proof</div>
+    <div class="stat-n">{{ stats.awaiting_proof }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Delivered</div>
+    <div class="stat-n">{{ stats.delivered }}</div>
+  </div>
+  <div class="stat stat--accent">
+    <div class="stat-l">Revenue</div>
+    <div class="stat-n">৳{{ '%d'|format(stats.revenue|int) }}</div>
+  </div>
+  <div class="stat {% if stats.proofs_pending %}stat--warning{% endif %}">
+    <div class="stat-l">Pending proofs</div>
+    <div class="stat-n">{{ stats.proofs_pending }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Units in stock</div>
+    <div class="stat-n">{{ stats.stock_available }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Users</div>
+    <div class="stat-n">{{ stats.users_count }}</div>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <div class="card-header">
+      <h2>Pending payments</h2>
+      <a href="/admin/payments" class="card-link">Open
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </a>
+    </div>
+    {% if pending_proofs %}
+    <ul class="simple">
+      {% for v in pending_proofs %}
+      <li>
+        <span class="proof-line">
+          <a href="/admin/orders/{{ v.order.order_code }}"><code>{{ v.order.order_code }}</code></a>
+          <span class="meta">৳{{ '%d'|format(v.order.total_bdt|int) }} · {{ v.proof.method }} <code>{{ v.proof.transaction_id }}</code></span>
+        </span>
+        <span class="muted">{{ v.buyer.full_name if v.buyer else '?' }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No payments waiting for review.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>Out of stock</h2>
+      <a href="/admin/inventory" class="card-link">Inventory
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </a>
+    </div>
+    {% if low_stock %}
+    <ul class="simple">
+      {% for p in low_stock %}
+      <li>
+        <span>{{ p.title }}</span>
+        <span class="badge st-cancelled">0 in stock</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">All active products have stock.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Recent orders</h2>
+    <a href="/admin/orders" class="card-link">View all
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+    </a>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead><tr><th>Order</th><th>Buyer</th><th class="num">Amount</th><th>Status</th><th>Placed</th></tr></thead>
+      <tbody>
+      {% for o in recent_orders %}
+        <tr>
+          <td><a href="/admin/orders/{{ o.order_code }}"><code>{{ o.order_code }}</code></a></td>
+          <td>{{ o.buyer_name }}{% if o.buyer_username %} <span class="muted">@{{ o.buyer_username }}</span>{% endif %}</td>
+          <td class="num">৳{{ '%d'|format(o.total_bdt|int) }}</td>
+          <td><span class="badge st-{{ o.status }}">{{ badges[o.status] }}</span></td>
+          <td class="muted nowrap">{{ o.created_at[:16] if o.created_at else '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not recent_orders %}<p class="muted mt-16">No orders yet.</p>{% endif %}
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Recent admin actions</h2>
+    <a href="/admin/audit" class="card-link">Audit log
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+    </a>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Detail</th></tr></thead>
+      <tbody>
+      {% for a in audit %}
+        <tr>
+          <td class="muted nowrap">{{ a.created_at[:16] if a.created_at else '' }}</td>
+          <td>{{ a.admin_name or a.admin_id }}</td>
+          <td><code>{{ a.action }}</code></td>
+          <td class="muted">{{ a.detail or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not audit %}<p class="muted mt-16">No actions logged yet.</p>{% endif %}
+</section>
+{% endblock %}

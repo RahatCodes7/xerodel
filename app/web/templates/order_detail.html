@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Order {{ order.order_code }} — {{ site.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">/</span>
+    <a href="/orders">My Orders</a>
+    <span class="sep">/</span>
+    <span>{{ order.order_code }}</span>
+  </div>
+
+  <div class="page-head">
+    <div class="row-between">
+      <div>
+        <h1 style="margin-bottom:6px">Order <code class="code-lg">{{ order.order_code }}</code></h1>
+        <p class="sub">Placed {{ order.created_at }} UTC{% if order.expires_at %} · Expires {{ order.expires_at }} UTC{% endif %}{% if order.payment_method %} · Method {{ order.payment_method }}{% endif %}</p>
+      </div>
+      <span class="badge st-{{ order.status }}" id="status-badge">{{ badges[order.status] }}</span>
+    </div>
+  </div>
+
+  {% if request.query_params.get('ok') == 'proof' %}
+  <div class="alert alert-success" role="status">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-4.8"/></svg>
+    <span>Payment proof submitted — an admin will verify it shortly.</span>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('err') == 'trxid' %}
+  <div class="alert alert-danger" role="alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+    <span>TrxID is required.</span>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('err') == 'bad_status' %}
+  <div class="alert alert-danger" role="alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+    <span>This order can no longer receive a proof.</span>
+  </div>
+  {% endif %}
+
+  {% set flow = ['pending_payment', 'awaiting_proof', 'paid', 'delivered'] %}
+  {% if order.status in flow %}
+  {% set current = flow.index(order.status) %}
+  <div class="status-steps" aria-label="Order progress">
+    {% for key in flow %}
+    <div class="status-step {% if loop.index0 < current %}done{% elif loop.index0 == current %}current{% endif %}">
+      <span class="dot" aria-hidden="true"></span>
+      <span>{% if key == 'pending_payment' %}Payment pending{% elif key == 'awaiting_proof' %}Proof review{% elif key == 'paid' %}Paid{% else %}Delivered{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+        </span>
+        Items
+      </h2>
+    </div>
+    <div class="table-wrap table-wrap--plain">
+      <table class="tbl tbl-stack">
+        <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+        {% for it in order["items"] %}
+          <tr>
+            <td class="row-title">{{ it.product_title }}</td>
+            <td class="num" data-label="Qty">{{ it.quantity }}</td>
+            <td class="num" data-label="Unit price">৳{{ '%d'|format(it.unit_price|int) }}</td>
+            <td class="num" data-label="Subtotal">৳{{ '%d'|format((it.unit_price * it.quantity)|int) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><td colspan="3" class="right"><strong>Total</strong></td><td class="num"><strong>৳{{ '%d'|format(order.total_bdt|int) }}</strong></td></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  {% if order.status == 'pending_payment' %}
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/></svg>
+        </span>
+        Payment
+      </h2>
+    </div>
+
+    {% if site.bkash_number %}
+    <div class="pay-method">
+      <span class="pay-brand bkash" aria-hidden="true">bK</span>
+      <span class="pay-name">bKash</span>
+      <code>{{ site.bkash_number }}</code>
+      <button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ site.bkash_number }}', this)">Copy</button>
+    </div>
+    {% endif %}
+    {% if site.nagad_number %}
+    <div class="pay-method">
+      <span class="pay-brand nagad" aria-hidden="true">N</span>
+      <span class="pay-name">Nagad</span>
+      <code>{{ site.nagad_number }}</code>
+      <button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ site.nagad_number }}', this)">Copy</button>
+    </div>
+    {% endif %}
+    {% if site.payment_instructions %}<div class="instructions">{{ site.payment_instructions }}</div>{% endif %}
+
+    <p class="muted mt-16">After paying, upload the payment screenshot below with the TrxID. The order expires automatically if unpaid.</p>
+
+    <form method="post" action="/order/{{ order.order_code }}/proof" enctype="multipart/form-data" class="proof-form form">
+      <div class="field-grid">
+        <div>
+          <label for="proof-method">Method</label>
+          <select id="proof-method" name="method" required>
+            <option value="bKash">bKash</option>
+            <option value="Nagad">Nagad</option>
+          </select>
+        </div>
+        <div>
+          <label for="proof-trx">TrxID <span style="color:var(--red)">*</span></label>
+          <input type="text" id="proof-trx" name="transaction_id" placeholder="e.g. 8H2X9K1ABC" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="proof-sender">Sender number (optional)</label>
+        <input type="text" id="proof-sender" name="sender_number" placeholder="01XXXXXXXXX">
+      </div>
+      <div class="field">
+        <label for="proof-photo">Payment screenshot <span style="color:var(--red)">*</span></label>
+        <input type="file" id="proof-photo" name="photo" accept="image/*" required>
+        <span class="hint">Clear screenshot showing amount, TrxID and time.</span>
+      </div>
+      <button class="btn btn-primary" type="submit">Submit payment proof</button>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if order.status == 'awaiting_proof' %}
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+        </span>
+        Payment proof
+      </h2>
+      <span class="badge st-pending">Under review</span>
+    </div>
+    <p>Proof submitted — waiting for admin verification. You'll be notified here and in the bot once verified.</p>
+    {% if proof %}
+    <div class="kv mt-16">
+      <div class="kv-row"><span class="k">Method</span><span class="v">{{ proof.method }}</span></div>
+      <div class="kv-row"><span class="k">TrxID</span><span class="v"><code>{{ proof.transaction_id }}</code></span></div>
+      {% if proof.sender_number %}<div class="kv-row"><span class="k">Sender</span><span class="v">{{ proof.sender_number }}</span></div>{% endif %}
+    </div>
+    {% if proof.photo_path or proof.photo_file_id %}
+    <p class="mt-16"><a href="/api/orders/{{ order.order_code }}/proof/photo" target="_blank" rel="noopener">View proof photo</a></p>
+    {% endif %}
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if order.status == 'delivered' %}
+  <section class="card credentials" id="credentials-card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--green-soft);border-color:var(--green-line);color:var(--green)" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16.5 6.5 19 9M14 9l2 2"/></svg>
+        </span>
+        Your credentials
+      </h2>
+      <span class="badge st-delivered">Delivered</span>
+    </div>
+    <p class="muted">Keep these safe — they stay available in this order.</p>
+    <div id="credentials">
+      {% for c in credentials %}
+      <div class="cred">
+        <div class="cred-title">{{ c.product_title }}</div>
+        <div class="cred-row"><span>Username</span><code id="user{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.username }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.username|default('') }}', this)">Copy</button></div>
+        <div class="cred-row"><span>Password</span><code id="pass{{ c.account_password|default('x') }}-{{ order.order_code }}">{{ c.password }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.password|default('') }}', this)">Copy</button></div>
+        {% if c.cookie %}<div class="cred-row"><span>Cookie</span><code class="cookie" id="cookie{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.cookie }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.cookie|default('') }}', this)">Copy</button></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="card credentials" id="credentials-card" style="display:none">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--green-soft);border-color:var(--green-line);color:var(--green)" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16.5 6.5 19 9M14 9l2 2"/></svg>
+        </span>
+        Your credentials
+      </h2>
+    </div>
+    <div id="credentials"></div>
+  </section>
+  {% endif %}
+
+  {% if order.status in ['cancelled', 'rejected'] %}
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--red-soft);border-color:var(--red-line);color:var(--red)" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>
+        </span>
+        Order {{ badges[order.status] }}
+      </h2>
+    </div>
+    <p>{% if order.cancel_reason == 'expired' %}Payment was not completed within the time limit.{% elif order.cancel_reason == 'out_of_stock' %}Item went out of stock before verification — if you paid, contact support with your TrxID for a refund.{% elif order.status == 'rejected' %}Payment proof was rejected by an admin.{% if order.delivery_note %}{{ order.delivery_note }}{% endif %}{% else %}Order was cancelled.{% endif %}</p>
+    <div class="btn-row">
+      <a class="btn btn-outline" href="/shop">Continue shopping</a>
+      <a class="btn btn-ghost" href="/orders">Back to my orders</a>
+    </div>
+  </section>
+  {% endif %}
+
+  <script>window.ORDER_CODE = "{{ order.order_code }}";</script>
+  <script src="/static/js/order_poll.js"></script>
+</div>
+{% endblock %}

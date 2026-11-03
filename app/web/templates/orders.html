@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My Orders — {{ site.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-head">
+    <div class="breadcrumb">
+      <a href="/">Home</a>
+      <span class="sep">/</span>
+      <span>My Orders</span>
+    </div>
+    <h1>My orders</h1>
+    <p class="sub">Every purchase, payment and delivery status in one place.</p>
+  </div>
+
+  {% if orders %}
+  <div class="table-wrap">
+    <table class="tbl tbl-stack">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Items</th>
+          <th class="num">Amount</th>
+          <th>Status</th>
+          <th>Placed</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for o in orders %}
+        <tr>
+          <td class="row-title"><a href="/order/{{ o.order_code }}"><code>{{ o.order_code }}</code></a></td>
+          <td data-label="Items">{% set n = o["items"]|length %}{{ n }} item{% if n != 1 %}s{% endif %}</td>
+          <td class="num" data-label="Amount">৳{{ '%d'|format(o.total_bdt|int) }}</td>
+          <td data-label="Status"><span class="badge st-{{ o.status }}">{{ badges[o.status] }}</span></td>
+          <td class="muted nowrap" data-label="Placed">{{ o.created_at[:16] if o.created_at else '' }}</td>
+          <td class="right">
+            <a class="card-link" href="/order/{{ o.order_code }}">View
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state tbl-empty orders-empty">
+    <span class="empty-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+    </span>
+    <h3>No orders yet</h3>
+    <p>Browse the shop to place your first order — delivery is instant once payment is verified.</p>
+    <a class="btn btn-primary mt-8" href="/shop">Browse the shop</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

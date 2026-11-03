@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% set active = 'audit' %}
+{% block title %}Audit log — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Audit log</h1>
+    <p>A record of admin actions performed in this store.</p>
+  </div>
+  <div class="head-actions">
+    <span class="badge badge--plain">{{ logs|length }} entries</span>
+  </div>
+</div>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Activity</h2>
+    <div class="toolbar">
+      <input type="search" class="table-filter" placeholder="Search admin, action or target…" aria-label="Search audit log" data-filter="#audit-table">
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="tbl" id="audit-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Admin</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for a in logs %}
+        <tr>
+          <td class="muted nowrap">{{ a.created_at[:19] if a.created_at else '' }}</td>
+          <td>{{ a.admin_name or a.admin_id }}</td>
+          <td><code>{{ a.action }}</code></td>
+          <td class="muted">{{ a.target_type }} {{ a.target_id }}</td>
+          <td class="muted">{{ a.detail or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not logs %}
+  <div class="empty-state mt-24">
+    <span class="empty-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a8.5 8.5 0 1 0 4.2 15.9"/><path d="M12 8v4.4l3 1.8"/><path d="M20.5 15.5v5l2 1"/></svg>
+    </span>
+    <h3>No actions logged yet</h3>
+    <p>Admin activity will appear here as soon as it happens.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

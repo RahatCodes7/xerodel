@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Checkout — {{ site.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-head">
+    <div class="breadcrumb">
+      <a href="/">Home</a>
+      <span class="sep">/</span>
+      <a href="/shop">Shop</a>
+      <span class="sep">/</span>
+      <a href="/product/{{ product.id }}">{{ product.title }}</a>
+      <span class="sep">/</span>
+      <span>Checkout</span>
+    </div>
+    <h1>Checkout</h1>
+    <p class="sub">Review your order and confirm the payment details below.</p>
+  </div>
+
+  {% if err == 'out_of_stock' %}
+  <div class="alert alert-danger" role="alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.3 2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 4.3a1.9 1.9 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17.2h.01"/></svg>
+    <span>Out of stock — this item was just sold.</span>
+  </div>
+  {% endif %}
+
+  <div class="checkout-grid">
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span class="card-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+          </span>
+          Order summary
+        </h2>
+      </div>
+
+      <div class="summary-item">
+        <div>
+          <h3>{{ product.title }}</h3>
+          <p class="desc">{{ product.description }}</p>
+        </div>
+      </div>
+
+      <div class="kv mt-16">
+        <div class="kv-row"><span class="k">Price</span><span class="v">৳{{ '%d'|format(product.price_bdt|int) }}</span></div>
+        <div class="kv-row"><span class="k">Quantity</span><span class="v">{{ qty }}</span></div>
+        <div class="kv-row"><span class="k">In stock</span><span class="v">{{ stock }}</span></div>
+        <div class="kv-row total"><span class="k" style="color:var(--text);font-weight:600">Total payable</span><span class="v">৳{{ '%d'|format((product.price_bdt * qty)|int) }}</span></div>
+      </div>
+
+      <ul class="simple mt-16">
+        <li>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+          Instant delivery after payment verification
+        </li>
+        <li>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+          Order reserved until payment is submitted
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span class="card-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/></svg>
+          </span>
+          Payment
+        </h2>
+      </div>
+
+      <form method="post" action="/checkout">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        <input type="hidden" name="qty" value="{{ qty }}">
+
+        <p class="muted">Pay the total amount using one of the methods below, then you'll be asked to upload the payment screenshot with the TrxID.</p>
+
+        {% if site.bkash_number %}
+        <div class="pay-method">
+          <span class="pay-brand bkash" aria-hidden="true">bK</span>
+          <span class="pay-name">bKash</span>
+          <code>{{ site.bkash_number }}</code>
+          <button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ site.bkash_number }}', this)">Copy</button>
+        </div>
+        {% endif %}
+
+        {% if site.nagad_number %}
+        <div class="pay-method">
+          <span class="pay-brand nagad" aria-hidden="true">N</span>
+          <span class="pay-name">Nagad</span>
+          <code>{{ site.nagad_number }}</code>
+          <button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ site.nagad_number }}', this)">Copy</button>
+        </div>
+        {% endif %}
+
+        {% if not site.bkash_number and not site.nagad_number %}
+        <div class="alert alert-warning" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+          <span>No payment numbers configured yet — contact support.</span>
+        </div>
+        {% endif %}
+
+        {% if site.payment_instructions %}
+        <div class="instructions">{{ site.payment_instructions }}</div>
+        {% endif %}
+
+        <button class="btn btn-primary btn-lg btn-block mt-16" type="submit">
+          Place order · ৳{{ '%d'|format((product.price_bdt * qty)|int) }}
+        </button>
+        <span class="hint" style="text-align:center">Your order code and payment details will appear on the next screen.</span>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

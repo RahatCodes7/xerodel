@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} — {{ site.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">/</span>
+    <a href="/shop">Shop</a>
+    <span class="sep">/</span>
+    <span>{{ product.title }}</span>
+  </div>
+
+  <div class="cols">
+    <div class="card product">
+      <div class="product-head">
+        <span class="card-platform">{{ labels[product.platform] if labels else product.platform }}</span>
+        <span class="stock-pill {% if stock == 0 %}out{% endif %}">
+          {% if stock > 0 %}{{ stock }} in stock{% else %}Out of stock{% endif %}
+        </span>
+      </div>
+      <h1 style="font-size:1.6rem; margin:4px 0 10px; letter-spacing:-0.025em">{{ product.title }}</h1>
+      <p class="desc" style="margin-bottom:0">{{ product.description }}</p>
+
+      <div class="product-meta">
+        <span class="price-lg">৳{{ '%d'|format(product.price_bdt|int) }}</span>
+        <span class="stock {% if stock == 0 %}out{% endif %}">{{ stock }} in stock</span>
+      </div>
+
+      {% if request.query_params.get('err') == 'out_of_stock' %}
+      <div class="alert alert-danger" role="alert">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.3 2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 4.3a1.9 1.9 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17.2h.01"/></svg>
+        <span>Sorry — this item just went out of stock.</span>
+      </div>
+      {% endif %}
+
+      {% if stock > 0 %}
+      <form method="get" action="/checkout" class="buy-form">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        <div class="qty-row">
+          <div class="qty-field">
+            <label for="qty">Quantity</label>
+            <input type="number" id="qty" name="qty" value="1" min="1" max="{{ [stock, 20]|min }}" required>
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit">
+            Buy now
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+          </button>
+        </div>
+        <span class="hint">You'll confirm your payment on the next step — nothing is charged automatically.</span>
+      </form>
+      {% else %}
+      <div class="alert alert-warning" role="status">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+        <span>Out of stock — check back later.</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+            </span>
+            Quick info
+          </h2>
+        </div>
+        <div class="kv">
+          <div class="kv-row"><span class="k">Product type</span><span class="v">{{ labels[product.platform] if labels else product.platform }}</span></div>
+          <div class="kv-row"><span class="k">Delivery time</span><span class="v">Instant</span></div>
+          <div class="kv-row"><span class="k">Support</span><span class="v">24/7</span></div>
+          <div class="kv-row"><span class="k">Availability</span><span class="v">{{ stock }} unit{% if stock != 1 %}s{% endif %}</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5c0 5 3.4 8.4 8 9.5 4.6-1.1 8-4.5 8-9.5v-5z"/><path d="m9 12 2 2 4-4"/></svg>
+            </span>
+            Buyer protection
+          </h2>
+        </div>
+        <ul class="simple">
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            Payment verified by an admin
+          </li>
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            Credentials stay visible in your orders
+          </li>
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            Refund if the item sells out
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

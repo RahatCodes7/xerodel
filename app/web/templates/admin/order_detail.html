@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% set active = 'orders' %}
+{% block title %}Order {{ order.order_code }} — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <div class="breadcrumb">
+      <a href="/admin/orders">Orders</a>
+      <span class="sep">/</span>
+      <span>{{ order.order_code }}</span>
+    </div>
+    <h1>Order <code>{{ order.order_code }}</code></h1>
+    <p>Placed {{ order.created_at }}{% if order.payment_method %} · {{ order.payment_method }}{% endif %}</p>
+  </div>
+  <div class="head-actions">
+    <span class="badge st-{{ order.status }}">{{ badges[order.status] }}</span>
+    <a class="btn btn-sm btn-outline" href="/order/{{ order.order_code }}" target="_blank" rel="noopener">Buyer view</a>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <div class="card-header">
+      <h2>Buyer</h2>
+    </div>
+    {% if buyer %}
+    <p><strong>{{ buyer.full_name or 'Unknown' }}</strong></p>
+    <p class="muted">@{{ buyer.username or '-' }} · id: <code>{{ buyer.telegram_id }}</code></p>
+    <div class="btn-row">
+      <a class="btn btn-sm btn-outline" href="https://t.me/{{ buyer.username }}" target="_blank" rel="noopener">Open Telegram</a>
+      <a class="btn btn-sm btn-ghost" href="tg://user?id={{ buyer.telegram_id }}" target="_blank" rel="noopener">tg://user?id={{ buyer.telegram_id }}</a>
+    </div>
+    {% else %}
+    <p class="muted">Buyer user id: {{ order.user_id }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>Summary</h2>
+    </div>
+    <div class="kv">
+      <div class="kv-row"><span class="k">Status</span><span class="v"><span class="badge st-{{ order.status }}">{{ badges[order.status] }}</span></span></div>
+      <div class="kv-row"><span class="k">Total</span><span class="v">৳{{ '%d'|format(order.total_bdt|int) }}</span></div>
+      <div class="kv-row"><span class="k">Payment method</span><span class="v">{{ order.payment_method or '-' }}</span></div>
+      <div class="kv-row"><span class="k">Placed</span><span class="v">{{ order.created_at }}</span></div>
+      <div class="kv-row"><span class="k">Expires</span><span class="v">{{ order.expires_at or '-' }}</span></div>
+      <div class="kv-row"><span class="k">Paid at</span><span class="v">{{ order.paid_at or '-' }}</span></div>
+      <div class="kv-row"><span class="k">Delivered at</span><span class="v">{{ order.delivered_at or '-' }}</span></div>
+      <div class="kv-row"><span class="k">Delivery</span><span class="v">{{ order.delivery_status or '-' }}{% if order.delivery_note %} — <span class="warn">{{ order.delivery_note }}</span>{% endif %}</span></div>
+      {% if order.cancel_reason %}<div class="kv-row"><span class="k">Cancel reason</span><span class="v">{{ order.cancel_reason }}</span></div>{% endif %}
+    </div>
+    {% if public_link %}<p class="mt-16"><a href="{{ public_link }}" target="_blank" rel="noopener">Public channel post</a></p>{% endif %}
+    {% if private_link %}<p><a href="{{ private_link }}" target="_blank" rel="noopener">Private channel proof post</a></p>{% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Items</h2>
+  </div>
+  <div class="table-wrap table-wrap--plain">
+    <table class="tbl">
+      <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>
+      {% for it in order["items"] %}
+        <tr>
+          <td>{{ it.product_title }}</td>
+          <td class="num">{{ it.quantity }}</td>
+          <td class="num">৳{{ '%d'|format(it.unit_price|int) }}</td>
+          <td class="num">৳{{ '%d'|format((it.unit_price * it.quantity)|int) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="3" class="right">Total</td><td class="num">৳{{ '%d'|format(order.total_bdt|int) }}</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+
+{% if proof %}
+<section class="card">
+  <div class="card-header">
+    <h2>Payment proof</h2>
+    <span class="badge st-{{ proof.status }}">{{ proof.status }}</span>
+  </div>
+
+  <div class="proof-meta" style="display:grid;gap:6px;padding:14px;border-radius:var(--r-sm);background:var(--bg-elevated);border:1px solid var(--line-soft)">
+    <div style="display:flex;gap:10px;font-size:13px"><span class="muted" style="flex:0 0 90px">Method</span><span>{{ proof.method }}</span></div>
+    <div style="display:flex;gap:10px;font-size:13px"><span class="muted" style="flex:0 0 90px">TrxID</span><code>{{ proof.transaction_id }}</code></div>
+    {% if proof.sender_number %}<div style="display:flex;gap:10px;font-size:13px"><span class="muted" style="flex:0 0 90px">Sender</span><span>{{ proof.sender_number }}</span></div>{% endif %}
+  </div>
+
+  <p class="muted mt-16">Submitted: {{ proof.created_at }}{% if proof.reviewed_at %} · Reviewed: {{ proof.reviewed_at }}{% endif %}{% if proof.reviewed_by %} by {{ proof.reviewed_by }}{% endif %}{% if proof.note %} · Note: {{ proof.note }}{% endif %}</p>
+
+  {% if proof.photo_path or proof.photo_file_id %}
+  <p class="mt-16"><a href="/admin/proofs/{{ proof.id }}/photo" target="_blank" rel="noopener"><img class="proof-img" src="/admin/proofs/{{ proof.id }}/photo" alt="Payment proof screenshot"></a></p>
+  {% endif %}
+
+  {% if proof.status == 'pending' %}
+  <form method="post" action="/api/admin/payments/{{ order.id }}/decide" class="decide-form mt-16">
+    <label for="decide-note">Note (optional, shown to buyer on reject)</label>
+    <textarea id="decide-note" name="note" rows="2"></textarea>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-success" name="decision" value="accepted" type="submit">Accept &amp; deliver</button>
+      <button class="btn btn-danger" name="decision" value="rejected" type="submit">Reject</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if credentials %}
+<section class="card">
+  <div class="card-header">
+    <h2>Delivered credentials</h2>
+    <span class="badge st-delivered">{{ credentials|length }} unit(s)</span>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead><tr><th>Product</th><th>Username</th><th>Password</th><th>Cookie</th></tr></thead>
+      <tbody>
+      {% for c in credentials %}
+        <tr>
+          <td>{{ c.product_title if c.product_title is defined else '' }}</td>
+          <td><div class="input-row"><code id="admin-user{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.account_username }}</code><button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ c.account_username|default('') }}', this)">Copy</button></div></td>
+          <td><div class="input-row"><code id="admin-pass{{ c.account_password|default('x') }}-{{ order.order_code }}">{{ c.account_password }}</code><button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ c.account_password|default('') }}', this)">Copy</button></div></td>
+          <td class="cookie-cell"><div class="input-row"><code id="admin-cookie{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.cookie_data or '' }}</code><button class="btn btn-sm btn-copy" type="button" onclick="copyToClipboard('{{ c.cookie_data|default('') }}', this)">Copy</button></div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

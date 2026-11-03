@@ -1,0 +1,127 @@
+{% extends "admin/base.html" %}
+{% set active = 'inventory' %}
+{% block title %}Inventory — Admin{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Inventory</h1>
+    <p>Stock units per product — add in bulk, upload a zip, or remove available units.</p>
+  </div>
+</div>
+
+{% if products %}
+<div class="tabs" role="tablist" aria-label="Products">
+  {% for p in products %}
+  <a href="/admin/inventory?product_id={{ p.id }}" class="{% if product and p.id == product.id %}active{% endif %}">{{ p.title }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if product %}
+<div class="stat-grid stat-grid--auto">
+  <div class="stat">
+    <div class="stat-l">Available</div>
+    <div class="stat-n">{{ counts.available }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Assigned</div>
+    <div class="stat-n">{{ counts.assigned }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-l">Sold</div>
+    <div class="stat-n">{{ counts.sold }}</div>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <div class="card-header">
+      <h2>Bulk add — {{ product.title }}</h2>
+    </div>
+    <form method="post" action="/admin/inventory/add" class="form">
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <div class="field">
+        <label for="bulk-text">Units</label>
+        <textarea id="bulk-text" name="bulk_text" rows="8" placeholder="user1 | pass1 | cookie1&#10;user2 | pass2"></textarea>
+        <span class="hint">One per line: <code>username | password | cookie</code> (cookie optional for account products)</span>
+      </div>
+      <button class="btn btn-primary" type="submit">Add units</button>
+    </form>
+    {% if request.query_params.get('added') %}
+    <p class="ok mt-16">Added {{ request.query_params.get('added') }} units.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>Zip upload — {{ product.title }}</h2>
+    </div>
+    <form method="post" action="/admin/inventory/zip-add" class="form" enctype="multipart/form-data">
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <div class="field">
+        <label for="zip-file">Archive</label>
+        <input type="file" id="zip-file" name="zip_file" accept=".zip" required>
+        <span class="hint">Upload a .zip containing text files. Each line: <code>username | password | cookie</code> (cookie optional).</span>
+      </div>
+      <button class="btn btn-primary" type="submit">Add from zip</button>
+    </form>
+    {% if request.query_params.get('added') %}
+    <p class="ok mt-16">Added {{ request.query_params.get('added') }} units.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card mt-24">
+  <div class="card-header">
+    <h2>Units</h2>
+    <div class="toolbar">
+      <input type="search" class="table-filter" placeholder="Search units…" aria-label="Search units" data-filter="#units-table">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="tbl" id="units-table">
+      <thead>
+        <tr>
+          <th style="width:52px">ID</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Cookie</th>
+          <th>Status</th>
+          <th>Order</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for i in items %}
+        <tr>
+          <td class="muted">#{{ i.id }}</td>
+          <td><code>{{ i.account_username or '' }}</code></td>
+          <td><code>{{ i.account_password or '' }}</code></td>
+          <td class="cookie-cell"><code>{{ i.cookie_data or '' }}</code></td>
+          <td><span class="badge st-{{ i.status }}">{{ i.status }}</span></td>
+          <td>{% if i.assigned_order_id %}<a href="/admin/orders?q={{ i.assigned_order_id }}"><code>{{ i.assigned_order_id }}</code></a>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="actions">
+            {% if i.status == 'available' %}
+            <form method="post" action="/admin/inventory/{{ i.id }}/delete">
+              <input type="hidden" name="product_id" value="{{ product.id }}">
+              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete this unit?')">Delete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not items %}<p class="muted mt-16">No units for this product yet.</p>{% endif %}
+</section>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><path d="M4 11.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+  </span>
+  <h3>No product selected</h3>
+  <p>Pick a product above to manage its stock units.</p>
+</div>
+{% endif %}
+{% endblock %}
