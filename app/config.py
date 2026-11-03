@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     PROOF_DIR: str = "data/proofs"
 
     PORT: int = 8000
-    SITE_NAME: str = "Sell Premium"
+    SITE_NAME: str = "Xerodel"
     SITE_CURRENCY: str = "৳"
 
     BKASH_NUMBER: str = ""

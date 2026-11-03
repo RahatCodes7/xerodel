@@ -1,4 +1,4 @@
-# Sell Premium — Telegram + Website Account Store
+# Xerodel — Telegram + Website Account Store
 
 A single-process FastAPI app with a website, admin panel, and Telegram bot that share one SQLite database. Orders are fully synced between the website and the bot.
 
