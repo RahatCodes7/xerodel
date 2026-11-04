@@ -1,0 +1,22 @@
+services:
+  xerodel:
+    build: .
+    image: xerodel:latest
+    container_name: xerodel
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/app.db
+      - PROOF_DIR=/app/data/proofs
+    depends_on: []
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
