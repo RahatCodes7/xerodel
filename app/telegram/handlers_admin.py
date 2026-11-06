@@ -38,7 +38,7 @@ def _require_admin(update):
 
 async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
-    upsert_user(u.id, u.full_name, u.username, (u.photo_url if u.photo else None))
+    upsert_user(u.id, u.full_name, u.username, None)
     if not _require_admin(update):
         await update.message.reply_text("⛔ This command is for admins only.")
         return
