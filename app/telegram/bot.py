@@ -1,4 +1,5 @@
 from telegram import BotCommand
+from telegram.error import BadRequest, Conflict, NetworkError, TimedOut
 from telegram.ext import ApplicationBuilder
 
 from app.config import settings
@@ -7,7 +8,21 @@ application = None
 
 
 async def _on_error(update, context):
-    print(f"[bot] handler error: {context.error!r}")
+    err = context.error
+    if isinstance(err, Conflict):
+        print(
+            "[bot] CONFLICT: another process is polling this bot token. "
+            "Stop the duplicate instance/webhook — otherwise button taps are answered by "
+            "the wrong process and admins see 'Query is too old'."
+        )
+        return
+    if isinstance(err, BadRequest) and "query is too old" in str(err).lower():
+        # A stale button tap replayed after a Conflict restart: harmless, don't alert anyone.
+        print(f"[bot] stale callback query ignored: {err}")
+        return
+    print(f"[bot] handler error: {err!r}")
+    if isinstance(err, (BadRequest, NetworkError, TimedOut)):
+        return
     try:
         message = update.effective_message if update else None
         if message is not None:

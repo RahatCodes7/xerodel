@@ -351,29 +351,51 @@ async def adm_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.message.reply_text(f"Showing the latest {ADMIN_PAGE_SIZE} pending proofs. Clear them to see older ones.")
 
 
+async def _safe_answer(q, text=None, show_alert=False):
+    """A button tap replayed after a getUpdates conflict is already expired."""
+    try:
+        await q.answer(text, show_alert=show_alert)
+        return True
+    except Exception as e:
+        print(f"[bot] callback answer failed ({getattr(q, 'data', '')}): {e}")
+        return False
+
+
+async def _safe_reply(q, text):
+    try:
+        await q.message.reply_text(text)
+    except Exception as e:
+        print(f"[bot] callback reply failed: {e}")
+
+
 async def adm_decide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     if not is_admin(q.from_user.id):
-        await q.answer("⛔ Admins only", show_alert=True)
+        await _safe_answer(q, "⛔ Admins only", show_alert=True)
         return
     m = re.match(r"^adm_(acc|rej)_(\d+)$", q.data)
     if not m:
-        await q.answer("Unknown action", show_alert=True)
+        await _safe_answer(q, "Unknown action", show_alert=True)
         return
     decision = "accepted" if m.group(1) == "acc" else "rejected"
     order_id = int(m.group(2))
-    await q.answer("Processing...")
-    result = await payments_svc.decide(order_id, decision, q.from_user.id, bot=context.bot)
+    await _safe_answer(q, "Processing...")
+    try:
+        result = await payments_svc.decide(order_id, decision, q.from_user.id, bot=context.bot)
+    except Exception as e:
+        print(f"[bot] decide failed for order id {order_id}: {e!r}")
+        result = {"ok": False, "error": str(e)}
     if result.get("reason") == "already_processed":
-        await q.answer("Already processed by another admin", show_alert=True)
+        await _safe_answer(q, "Already processed by another admin", show_alert=True)
+        await _safe_reply(q, "ℹ️ This proof was already reviewed — nothing to do.")
     elif result.get("ok"):
         try:
             await q.edit_message_reply_markup(reply_markup=None)
         except Exception:
             pass
-        await q.message.reply_text(f"✅ Order {result.get('order_code')}: proof {decision}.")
+        await _safe_reply(q, f"✅ Order {result.get('order_code')}: proof {decision}.")
     else:
-        await q.message.reply_text(f"⚠️ Failed: {result.get('error', 'unknown error')}")
+        await _safe_reply(q, f"⚠️ Failed: {result.get('error', 'unknown error')}")
 
 
 # ---------------------------------------------------------------- stats & settings

@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 
-from app.database import get_channel_ids, get_user, log_admin_action
+from app.database import get_channel_ids, get_setting, get_user, log_admin_action, set_setting
 from app.services import channels, inventory as inventory_svc, orders as orders_svc
 from app.services.channels import esc
 
@@ -10,7 +10,16 @@ SUPPORT_USERNAME = "zyokr"
 LOGIN_PHRASE = "Xerodel Cookie To Login"
 
 VIDEO_PATH = Path(__file__).resolve().parents[2] / "Xerodel.MP4"
+VIDEO_FILE_ID_KEY = "guide_video_file_id"
 _VIDEO_FILE_ID = None
+
+# An 11 MB upload from the server easily blows past the 5s/20s defaults.
+SEND_VIDEO_TIMEOUTS = {
+    "connect_timeout": 30,
+    "read_timeout": 180,
+    "write_timeout": 300,
+    "pool_timeout": 30,
+}
 
 
 def login_guide_video_path():
@@ -57,27 +66,56 @@ def cookie_login_lines(usernames, use_html=False):
     ]
 
 
-async def send_login_guide_video(bot, chat_id, caption=None):
-    """Send Xerodel.MP4 once per process, reusing the Telegram file_id after that."""
+def _cached_video_file_id():
+    """Remember the uploaded file_id across restarts so 11 MB is uploaded once."""
     global _VIDEO_FILE_ID
+    if not _VIDEO_FILE_ID:
+        try:
+            _VIDEO_FILE_ID = get_setting(VIDEO_FILE_ID_KEY) or None
+        except Exception as e:
+            print(f"[delivery] could not read cached video file_id: {e}")
+    return _VIDEO_FILE_ID
+
+
+def _cache_video_file_id(file_id):
+    global _VIDEO_FILE_ID
+    _VIDEO_FILE_ID = file_id or None
+    try:
+        set_setting(VIDEO_FILE_ID_KEY, file_id or "")
+    except Exception as e:
+        print(f"[delivery] could not store video file_id: {e}")
+
+
+async def send_login_guide_video(bot, chat_id, caption=None):
+    """Send Xerodel.MP4, reusing the cached Telegram file_id after the first upload."""
     if bot is None or not VIDEO_PATH.exists():
         return False
-    try:
-        if _VIDEO_FILE_ID:
+    file_id = _cached_video_file_id()
+    if file_id:
+        try:
             await bot.send_video(
-                chat_id=chat_id, video=_VIDEO_FILE_ID, caption=caption, supports_streaming=True
+                chat_id=chat_id,
+                video=file_id,
+                caption=caption,
+                supports_streaming=True,
+                **SEND_VIDEO_TIMEOUTS,
             )
-        else:
-            with open(VIDEO_PATH, "rb") as fh:
-                msg = await bot.send_video(
-                    chat_id=chat_id,
-                    video=fh,
-                    filename="Xerodel.mp4",
-                    caption=caption,
-                    supports_streaming=True,
-                )
-            if getattr(msg, "video", None):
-                _VIDEO_FILE_ID = msg.video.file_id
+            return True
+        except Exception as e:
+            print(f"[delivery] cached video file_id failed ({e}) — uploading again")
+            _cache_video_file_id(None)
+    try:
+        with open(VIDEO_PATH, "rb") as fh:
+            msg = await bot.send_video(
+                chat_id=chat_id,
+                video=fh,
+                filename="Xerodel.mp4",
+                caption=caption,
+                supports_streaming=True,
+                **SEND_VIDEO_TIMEOUTS,
+            )
+        if getattr(msg, "video", None):
+            _cache_video_file_id(msg.video.file_id)
         return True
     except Exception as e:
         print(f"[delivery] guide video send failed: {e}")
