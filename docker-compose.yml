@@ -30,6 +30,9 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://xerodel:xerodel@db:5432/xerodel}
       - PROOF_DIR=/app/data/proofs
+      # Pinned: the container always listens on 8000 internally so the published
+      # port, the healthcheck and Dokploy's domain target can never disagree.
+      - PORT=8000
     depends_on:
       db:
         condition: service_healthy
