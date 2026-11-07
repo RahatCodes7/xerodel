@@ -1,0 +1,26 @@
+.git
+.gitignore
+.github
+.env
+.env.*
+.venv
+.agents
+.freebuff
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Local data must never be baked into the image
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Local-only helpers
+tunnel.sh
+selftest.py

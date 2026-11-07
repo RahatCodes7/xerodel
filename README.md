@@ -116,12 +116,23 @@ DATABASE_URL=postgresql://user:pass@host:5432/db \
 Then copy `data/proofs/` to the server's `PROOF_DIR` (same path, e.g. `/app/data/proofs`). The `--replace` flag wipes existing target rows; omit it for an empty database.
 
 ## Deployment (Docker / Dokploy)
-`docker-compose.yml` starts PostgreSQL plus the app and waits for the database healthcheck.
-1. Set `DATABASE_URL`, bot tokens, channel IDs and `BASE_URL` in the environment (Dokploy → Environment).
-2. Mount a persistent volume at `/app/data` for payment proof images.
-3. Deploy the Compose stack; the schema is created on first start.
+The image is self-preparing — no manual database setup or migration step is needed:
 
-If you use an external managed Postgres, point `DATABASE_URL` at it and remove the `db` service.
+1. **Add env vars** (Dokploy → Environment): `DATABASE_URL`, `BOT_TOKEN`, `BOT_USERNAME`, `PUBLIC_CHANNEL_ID`, `PRIVATE_CHANNEL_ID`, `ADMIN_IDS`, `WEBHOOK_SECRET`, `SESSION_SECRET`, `BASE_URL`, `BKASH_NUMBER`, `NAGAD_NUMBER`. Use `SEED_DEMO=false` in production.
+2. **Mount a persistent volume** at `/app/data` for payment proof images.
+3. **Deploy.** On start the entrypoint:
+   - waits for PostgreSQL (`DB_WAIT_SECONDS`, default 60)
+   - creates/updates every table and default settings
+   - creates `PROOF_DIR`, fixes volume permissions, then starts uvicorn as the non-root `app` user
+
+The container runs a single uvicorn worker on purpose (the Telegram bot shares the process). Healthcheck: `/healthz`.
+
+`docker-compose.yml` is optional local convenience; when using Dokploy's external database just point `DATABASE_URL` at it (the bundled `db` service becomes unused).
+
+For data from the old SQLite deployment, migrate it once before switching traffic:
+```bash
+DATABASE_URL="postgresql://..." python scripts/migrate_sqlite_to_postgres.py --sqlite data/app.db --replace
+```
 
 ## Validation Checklist
 1. Place order via bot → public channel post appears with masked buyer
