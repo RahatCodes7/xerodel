@@ -2964,49 +2964,6 @@ body::after {
   margin-bottom: 8px;
 }
 
-.login-manual {
-  width: 100%;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line-soft);
-  text-align: left;
-}
-
-.login-manual summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted-strong);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-}
-
-.login-manual summary::-webkit-details-marker {
-  display: none;
-}
-
-.login-manual summary::after {
-  content: "+";
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1;
-}
-
-.login-manual[open] summary::after {
-  content: "−";
-}
-
-.login-manual .form {
-  margin-top: 14px;
-}
-
-.login-manual .form label:first-child {
-  margin-top: 0;
-}
-
 /* ---------- Footer ---------- */
 .footer {
   margin-top: 64px;

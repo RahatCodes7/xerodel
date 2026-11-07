@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
-from app.database import get_setting, get_user, upsert_user
+from app.database import get_setting, upsert_user
 from app.services import (
     inventory as inventory_svc,
     orders as orders_svc,
@@ -104,47 +104,6 @@ async def logout(request: Request):
     resp = RedirectResponse("/", status_code=303)
     secure = settings.BASE_URL.startswith("https")
     resp.set_cookie(COOKIE_NAME, "", max_age=0, expires=0, httponly=True, samesite="lax", secure=secure, path="/")
-    return resp
-
-
-@router.post("/api/auth/manual")
-async def manual_login(request: Request):
-    form = await request.form()
-    telegram_id = form.get("telegram_id")
-    if not telegram_id or not str(telegram_id).isdigit():
-        return JSONResponse({"ok": False, "error": "Invalid Telegram ID"}, status_code=400)
-    tg_id = int(telegram_id)
-    user = get_user(tg_id)
-    full_name = None
-    username = None
-    if user is None:
-        # Try to fetch real name from Telegram API (works for users who interacted with bot)
-        try:
-            import httpx
-            token = settings.BOT_TOKEN
-            if token:
-                r = httpx.get(f"https://api.telegram.org/bot{token}/getChat", params={"chat_id": tg_id}, timeout=10)
-                if r.status_code == 200:
-                    data = r.json()
-                    if data.get("ok"):
-                        chat = data["result"]
-                        full_name = chat.get("first_name", "Telegram User")
-                        if chat.get("last_name"):
-                            full_name = f"{full_name} {chat['last_name']}"
-                        username = chat.get("username")
-        except Exception:
-            pass
-        if not full_name:
-            full_name = f"Telegram User {tg_id}"
-        upsert_user(tg_id, full_name, username, None)
-        user = get_user(tg_id)
-    else:
-        full_name = user.get("full_name") or f"Telegram User {tg_id}"
-        username = user.get("username")
-    token = make_session(tg_id, full_name)
-    resp = JSONResponse({"ok": True, "next": "/"})
-    secure = settings.BASE_URL.startswith("https")
-    resp.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE, secure=secure, path="/")
     return resp
 
 

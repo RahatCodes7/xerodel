@@ -75,16 +75,6 @@
           {% endif %}
 
           <a class="btn btn-ghost btn-block mt-16" href="/shop">Continue browsing without login</a>
-
-          <details class="login-manual">
-            <summary>Log in manually with your Telegram ID</summary>
-            <form method="post" action="/api/auth/manual" class="form">
-              <label for="telegram_id">Telegram User ID</label>
-              <input type="number" id="telegram_id" name="telegram_id" placeholder="e.g. 123456789" required>
-              <button class="btn btn-primary btn-block" type="submit">Login with Telegram ID</button>
-              <span class="hint">Find your ID by sending <code>/start</code> to the bot. Use this if the widget keeps showing another account.</span>
-            </form>
-          </details>
         </div>
       </div>
     </div>
