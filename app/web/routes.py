@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
@@ -158,9 +158,34 @@ async def order_detail(request: Request, code: str, user=Depends(get_current_use
                     "username": i["account_username"],
                     "password": i["account_password"],
                     "cookie": i["cookie_data"],
+                    "inventory_id": i["id"],
                 }
             )
     return render(request, "order_detail.html", user, order=order, proof=proof, credentials=credentials)
+
+
+@router.get("/order/{code}/cookie/{inventory_id}")
+async def download_cookie(code: str, inventory_id: int, user=Depends(get_current_user)):
+    """Hand over the cookie as a downloadable .txt file."""
+    if user is None:
+        return RedirectResponse(f"/login?next=/order/{code}", status_code=303)
+    order = orders_svc.get_order_by_code(code)
+    if order is None or (order["user_id"] != user["telegram_id"] and not user["is_admin"]):
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order["status"] != "delivered":
+        raise HTTPException(status_code=404, detail="Cookie not available yet")
+    rows = inventory_svc.get_assigned_inventory(order["id"])
+    cookies = [r for r in rows if (r.get("cookie_data") or "").strip()]
+    row = next((r for r in cookies if r["id"] == inventory_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Cookie not found")
+    index = cookies.index(row) + 1
+    filename = f"cookie-{order['order_code']}-{index}.txt"
+    return Response(
+        content=(row["cookie_data"].strip() + "\n").encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/order/{code}/proof")
@@ -216,7 +241,8 @@ async def api_order(code: str, user=Depends(get_current_user)):
                 "product_title": titles.get(i["product_id"], ""),
                 "username": i["account_username"],
                 "password": i["account_password"],
-                "cookie": i["cookie_data"],
+                "cookie": bool((i["cookie_data"] or "").strip()),
+                "cookie_url": f"/order/{code}/cookie/{i['id']}",
             }
             for i in inv
         ]

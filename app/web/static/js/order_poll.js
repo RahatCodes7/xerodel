@@ -11,7 +11,7 @@
       var html = '<div class="cred"><div class="cred-title">' + esc(c.product_title) + '</div>';
       html += '<div class="cred-row"><span>Username</span><code>' + esc(c.username) + '</code></div>';
       html += '<div class="cred-row"><span>Password</span><code>' + esc(c.password) + '</code></div>';
-      if (c.cookie) html += '<div class="cred-row"><span>Cookie</span><code class="cookie">' + esc(c.cookie) + '</code></div>';
+      if (c.cookie_url) html += '<div class="cred-row"><span>Cookie</span><a class="btn btn-sm btn-primary" href="' + esc(c.cookie_url) + '" download>Download .txt</a></div>';
       html += '</div>';
       return html;
     }).join('');

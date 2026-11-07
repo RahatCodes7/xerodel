@@ -181,7 +181,7 @@
         <div class="cred-title">{{ c.product_title }}</div>
         <div class="cred-row"><span>Username</span><code id="user{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.username }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.username|default('') }}', this)">Copy</button></div>
         <div class="cred-row"><span>Password</span><code id="pass{{ c.account_password|default('x') }}-{{ order.order_code }}">{{ c.password }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.password|default('') }}', this)">Copy</button></div>
-        {% if c.cookie %}<div class="cred-row"><span>Cookie</span><code class="cookie" id="cookie{{ c.account_username|default('x') }}-{{ order.order_code }}">{{ c.cookie }}</code><button class="btn btn-sm btn-ghost" type="button" onclick="copyToClipboard('{{ c.cookie|default('') }}', this)">Copy</button></div>{% endif %}
+        {% if c.cookie %}<div class="cred-row"><span>Cookie</span><a class="btn btn-sm btn-primary" href="/order/{{ order.order_code }}/cookie/{{ c.inventory_id }}" download>Download .txt</a></div>{% endif %}
       </div>
       {% endfor %}
     </div>

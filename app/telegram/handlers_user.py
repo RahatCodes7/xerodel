@@ -1,4 +1,5 @@
 import html
+import io
 import re
 from datetime import datetime, timezone
 from math import ceil
@@ -17,6 +18,7 @@ from app.config import settings
 from app.database import get_admin_ids, get_connection, get_setting, upsert_user
 from app.services import inventory as inventory_svc, orders as orders_svc, payments as payments_svc
 from app.services.channels import STATUS_BADGES, fmt_money
+from app.services.delivery import cookie_bytes, cookie_filename, cookie_rows
 from app.services.products import get_product
 
 BUY_QTY, BUY_CONFIRM = range(2)
@@ -458,6 +460,7 @@ async def _send_order_detail(bot, chat_id, order):
         f"Status: {STATUS_BADGES.get(order['status'], order['status'])}",
     ]
     buttons = []
+    cookie_items = []
     if order["status"] == "pending_payment":
         minutes = _remaining_minutes(order)
         if minutes > 0:
@@ -478,8 +481,9 @@ async def _send_order_detail(bot, chat_id, order):
                 lines.append(f"\nAccount {i}:")
                 lines.append(f"Username: <code>{_esc(it['account_username'])}</code>")
                 lines.append(f"Password: <code>{_esc(it['account_password'])}</code>")
-                if it.get("cookie_data"):
-                    lines.append(f"Cookie: <code>{_esc(it['cookie_data'])}</code>")
+                if (it.get("cookie_data") or "").strip():
+                    lines.append("Cookie: sent as a .txt file")
+            cookie_items = cookie_rows(inv)
         buttons.append([InlineKeyboardButton("🔄 Refresh status", callback_data=f"ord_{order['order_code']}")])
     elif order["status"] in ("cancelled", "rejected"):
         reason = order.get("cancel_reason")
@@ -501,6 +505,16 @@ async def _send_order_detail(bot, chat_id, order):
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
+    for idx, it in enumerate(cookie_items, 1):
+        try:
+            await bot.send_document(
+                chat_id=chat_id,
+                document=io.BytesIO(cookie_bytes(it["cookie_data"])),
+                filename=cookie_filename(order["order_code"], idx),
+                caption=f"🍪 Cookie {idx} · {it['account_username'] or 'account'}",
+            )
+        except Exception as e:
+            print(f"[bot] cookie file send failed for {order['order_code']}: {e}")
 
 
 # ---------------------------------------------------------------- proof flow

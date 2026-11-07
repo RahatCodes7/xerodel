@@ -1,6 +1,21 @@
+import io
+
 from app.database import get_channel_ids, get_user, log_admin_action
 from app.services import channels, inventory as inventory_svc, orders as orders_svc
 from app.services.channels import esc
+
+
+def cookie_filename(order_code, index):
+    return f"cookie-{order_code}-{index}.txt"
+
+
+def cookie_bytes(cookie_data):
+    """Cookie files are handed over as a .txt attachment, never inline text."""
+    return ((cookie_data or "").strip() + "\n").encode("utf-8")
+
+
+def cookie_rows(inventory_rows):
+    return [inv for inv in inventory_rows if (inv.get("cookie_data") or "").strip()]
 
 
 def build_credentials_text(order, items, inventory_rows):
@@ -13,8 +28,8 @@ def build_credentials_text(order, items, inventory_rows):
             lines.append(f"Account {idx}:")
             lines.append(f"Username: <code>{esc(inv['account_username'])}</code>")
             lines.append(f"Password: <code>{esc(inv['account_password'])}</code>")
-            if inv.get("cookie_data"):
-                lines.append(f"Cookie: <code>{esc(inv['cookie_data'])}</code>")
+            if (inv.get("cookie_data") or "").strip():
+                lines.append("Cookie: sent as a .txt file below")
         lines.append("")
     lines.append("Thank you for your purchase!")
     return "\n".join(lines)
@@ -30,8 +45,8 @@ def build_credentials_plain(order, items, inventory_rows):
             lines.append(f"Account {idx}:")
             lines.append(f"Username: {inv['account_username'] or ''}")
             lines.append(f"Password: {inv['account_password'] or ''}")
-            if inv.get("cookie_data"):
-                lines.append(f"Cookie: {inv['cookie_data']}")
+            if (inv.get("cookie_data") or "").strip():
+                lines.append("Cookie: see the attached .txt file")
         lines.append("")
     lines.append("Thank you for your purchase!")
     return "\n".join(lines)
@@ -81,6 +96,17 @@ async def deliver_order(bot, order_id, admin_id=0):
             dm_ok = False
             dm_error = str(e)
             print(f"[delivery] DM failed for order {order['order_code']}: {e}")
+        if dm_ok:
+            for idx, inv in enumerate(cookie_rows(inventory_rows), 1):
+                try:
+                    await bot.send_document(
+                        chat_id=order["user_id"],
+                        document=io.BytesIO(cookie_bytes(inv["cookie_data"])),
+                        filename=cookie_filename(order["order_code"], idx),
+                        caption=f"🍪 Cookie {idx} · {inv['account_username'] or 'account'}",
+                    )
+                except Exception as e:
+                    print(f"[delivery] cookie file DM failed for order {order['order_code']}: {e}")
 
     inventory_svc.mark_sold(assigned_ids)
     orders_svc.mark_delivered(
