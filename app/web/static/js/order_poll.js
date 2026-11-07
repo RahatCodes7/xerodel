@@ -4,7 +4,7 @@
   var badge = document.getElementById('status-badge');
   var credsCard = document.getElementById('credentials-card');
   var credsEl = document.getElementById('credentials');
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&','<':'<','>':'>','"':'"',"'":'''}[c]; }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function renderCredentials(creds) {
     if (!credsEl) return;
     credsEl.innerHTML = creds.map(function (c) {
@@ -16,6 +16,15 @@
       return html;
     }).join('');
   }
+  function showCookieGuide(creds) {
+    var guide = document.getElementById('cookie-guide');
+    if (!guide) return;
+    var names = (creds || []).filter(function (c) { return c.cookie; }).map(function (c) { return c.username; });
+    if (!names.length) return;
+    guide.style.display = '';
+    var nodes = guide.querySelectorAll('.js-cookie-usernames');
+    for (var i = 0; i < nodes.length; i++) nodes[i].textContent = names.join(', ');
+  }
   var terminal = false;
   function poll() {
     fetch('/api/orders/' + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (d) {
@@ -24,6 +33,7 @@
       if (d.status === 'delivered') {
         if (credsCard) credsCard.style.display = '';
         if (d.credentials) renderCredentials(d.credentials);
+        showCookieGuide(d.credentials);
         terminal = true;
       } else if (d.status === 'cancelled' || d.status === 'rejected') {
         terminal = true;

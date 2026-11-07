@@ -200,6 +200,34 @@
   </section>
   {% endif %}
 
+  <section class="card cookie-guide" id="cookie-guide"{% if not cookie_usernames %} style="display:none"{% endif %}>
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--violet-soft);border-color:var(--violet-line);color:var(--violet)" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="16" rx="2"/><path d="m21 7-4 3 4 3z"/></svg>
+        </span>
+        Cookie login guide
+      </h2>
+    </div>
+    <video class="guide-video" controls playsinline preload="metadata" src="/video/xerodel.mp4"></video>
+    <div class="guide-steps">
+      <p class="guide-lang">English</p>
+      <ol class="guide-list">
+        <li>Open <a href="https://t.me/id_bot" target="_blank" rel="noopener">@id_bot</a> and send <code>/start</code> — copy the ID it gives you.</li>
+        <li>Message <a href="https://t.me/zyokr" target="_blank" rel="noopener">@zyokr</a> with: <code>Xerodel Cookie To Login</code></li>
+        <li>Send your Username: <code class="js-cookie-usernames">{{ cookie_usernames|join(', ') }}</code></li>
+        <li>Send that ID too — then you get your Xerodel Cookie login link.</li>
+      </ol>
+      <p class="guide-lang">বাংলা</p>
+      <ol class="guide-list">
+        <li><a href="https://t.me/id_bot" target="_blank" rel="noopener">@id_bot</a> এ যান, <code>/start</code> দিন — যে ID আসবে সেটা কপি করুন।</li>
+        <li><a href="https://t.me/zyokr" target="_blank" rel="noopener">@zyokr</a> কে মেসেজ দিন: <code>Xerodel Cookie To Login</code></li>
+        <li>আপনার Username দিন: <code class="js-cookie-usernames">{{ cookie_usernames|join(', ') }}</code></li>
+        <li>সাথে ওই ID টাও পাঠান — তখনই Xerodel Cookie লগইন লিংক পেয়ে যাবেন।</li>
+      </ol>
+    </div>
+  </section>
+
   {% if order.status in ['cancelled', 'rejected'] %}
   <section class="card">
     <div class="card-header">

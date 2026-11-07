@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import settings
 from app.database import get_setting, upsert_user
 from app.services import (
+    delivery as delivery_svc,
     inventory as inventory_svc,
     orders as orders_svc,
     payments as payments_svc,
@@ -161,7 +162,16 @@ async def order_detail(request: Request, code: str, user=Depends(get_current_use
                     "inventory_id": i["id"],
                 }
             )
-    return render(request, "order_detail.html", user, order=order, proof=proof, credentials=credentials)
+    cookie_usernames = [c["username"] for c in credentials if c["cookie"]]
+    return render(
+        request,
+        "order_detail.html",
+        user,
+        order=order,
+        proof=proof,
+        credentials=credentials,
+        cookie_usernames=cookie_usernames,
+    )
 
 
 @router.get("/order/{code}/cookie/{inventory_id}")
@@ -185,6 +195,17 @@ async def download_cookie(code: str, inventory_id: int, user=Depends(get_current
         content=(row["cookie_data"].strip() + "\n").encode("utf-8"),
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/video/xerodel.mp4")
+async def login_guide_video(user=Depends(get_current_user)):
+    """Cookie login guide video shown next to the credentials."""
+    path = delivery_svc.login_guide_video_path()
+    if user is None or not path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(
+        path, media_type="video/mp4", headers={"Cache-Control": "private, max-age=86400"}
     )
 
 

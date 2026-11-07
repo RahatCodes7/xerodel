@@ -18,7 +18,7 @@ from app.config import settings
 from app.database import get_admin_ids, get_connection, get_setting, upsert_user
 from app.services import inventory as inventory_svc, orders as orders_svc, payments as payments_svc
 from app.services.channels import STATUS_BADGES, fmt_money
-from app.services.delivery import cookie_bytes, cookie_filename, cookie_rows
+from app.services.delivery import cookie_bytes, cookie_filename, cookie_rows, send_cookie_login_guide
 from app.services.products import get_product
 
 BUY_QTY, BUY_CONFIRM = range(2)
@@ -515,6 +515,8 @@ async def _send_order_detail(bot, chat_id, order):
             )
         except Exception as e:
             print(f"[bot] cookie file send failed for {order['order_code']}: {e}")
+    if cookie_items:
+        await send_cookie_login_guide(bot, chat_id, cookie_items, with_video=False)
 
 
 # ---------------------------------------------------------------- proof flow

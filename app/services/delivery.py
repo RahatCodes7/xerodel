@@ -1,8 +1,20 @@
 import io
+from pathlib import Path
 
 from app.database import get_channel_ids, get_user, log_admin_action
 from app.services import channels, inventory as inventory_svc, orders as orders_svc
 from app.services.channels import esc
+
+ID_BOT_USERNAME = "id_bot"
+SUPPORT_USERNAME = "zyokr"
+LOGIN_PHRASE = "Xerodel Cookie To Login"
+
+VIDEO_PATH = Path(__file__).resolve().parents[2] / "Xerodel.MP4"
+_VIDEO_FILE_ID = None
+
+
+def login_guide_video_path():
+    return VIDEO_PATH
 
 
 def cookie_filename(order_code, index):
@@ -16,6 +28,76 @@ def cookie_bytes(cookie_data):
 
 def cookie_rows(inventory_rows):
     return [inv for inv in inventory_rows if (inv.get("cookie_data") or "").strip()]
+
+
+def cookie_username_list(inventory_rows):
+    return [(inv.get("account_username") or "Cookie") for inv in cookie_rows(inventory_rows)]
+
+
+def cookie_login_lines(usernames, use_html=False):
+    """Bilingual how-to-login steps shown with the guide video."""
+    bold = (lambda s: f"<b>{s}</b>") if use_html else (lambda s: s)
+    code = (lambda s: f"<code>{s}</code>") if use_html else (lambda s: s)
+    esc_name = esc if use_html else (lambda s: s)
+    names = ", ".join(esc_name(n) for n in usernames) or "-"
+    return [
+        bold("🔐 Cookie login — কীভাবে লগইন লিংক পাবেন"),
+        "",
+        bold("English"),
+        f"1) Open t.me/{ID_BOT_USERNAME} and send /start — copy the ID it gives you.",
+        f"2) Message t.me/{SUPPORT_USERNAME} with: {bold(LOGIN_PHRASE)}",
+        f"3) Send your Username: {code(names)}",
+        "4) Send that ID too — then you get your Xerodel Cookie login link.",
+        "",
+        bold("বাংলা"),
+        f"১) t.me/{ID_BOT_USERNAME} এ যান, /start দিন — যে ID আসবে সেটা কপি করুন।",
+        f"২) t.me/{SUPPORT_USERNAME} কে মেসেজ দিন: {bold(LOGIN_PHRASE)}",
+        f"৩) আপনার Username দিন: {code(names)}",
+        "৪) সাথে ওই ID টাও পাঠান — তখনই Xerodel Cookie লগইন লিংক পাবেন।",
+    ]
+
+
+async def send_login_guide_video(bot, chat_id, caption=None):
+    """Send Xerodel.MP4 once per process, reusing the Telegram file_id after that."""
+    global _VIDEO_FILE_ID
+    if bot is None or not VIDEO_PATH.exists():
+        return False
+    try:
+        if _VIDEO_FILE_ID:
+            await bot.send_video(
+                chat_id=chat_id, video=_VIDEO_FILE_ID, caption=caption, supports_streaming=True
+            )
+        else:
+            with open(VIDEO_PATH, "rb") as fh:
+                msg = await bot.send_video(
+                    chat_id=chat_id,
+                    video=fh,
+                    filename="Xerodel.mp4",
+                    caption=caption,
+                    supports_streaming=True,
+                )
+            if getattr(msg, "video", None):
+                _VIDEO_FILE_ID = msg.video.file_id
+        return True
+    except Exception as e:
+        print(f"[delivery] guide video send failed: {e}")
+        return False
+
+
+async def send_cookie_login_guide(bot, chat_id, inventory_rows, with_video=True):
+    """Video + bilingual instructions telling the buyer how to get their login link."""
+    rows = cookie_rows(inventory_rows)
+    if bot is None or not rows:
+        return
+    if with_video:
+        await send_login_guide_video(bot, chat_id, caption="🎬 Xerodel — Cookie login guide")
+    text = "\n".join(cookie_login_lines(cookie_username_list(rows), use_html=True))
+    try:
+        await bot.send_message(
+            chat_id=chat_id, text=text, parse_mode="HTML", disable_web_page_preview=True
+        )
+    except Exception as e:
+        print(f"[delivery] login guide text failed: {e}")
 
 
 def build_credentials_text(order, items, inventory_rows):
@@ -107,6 +189,7 @@ async def deliver_order(bot, order_id, admin_id=0):
                     )
                 except Exception as e:
                     print(f"[delivery] cookie file DM failed for order {order['order_code']}: {e}")
+            await send_cookie_login_guide(bot, order["user_id"], inventory_rows)
 
     inventory_svc.mark_sold(assigned_ids)
     orders_svc.mark_delivered(
