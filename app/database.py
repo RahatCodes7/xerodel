@@ -216,6 +216,59 @@ def init_db():
     conn.close()
 
 
+POLLER_KEY = "bot_poller"
+
+
+def claim_bot_poller(owner, ttl_seconds=60):
+    """Lease the single getUpdates slot for this token.
+
+    Telegram rejects a second long-poll with `Conflict`, so during a rolling deploy
+    (old and new container alive together) whoever loses this lease must stay
+    website-only instead of fighting for updates.
+    """
+    value = f"{owner}|{time.time():.3f}"
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """INSERT INTO settings (key, value) VALUES (?, ?)
+               ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+               WHERE split_part(settings.value, '|', 1) = ?
+                  OR coalesce(NULLIF(split_part(settings.value, '|', 2), '')::double precision, 0) < ?
+               RETURNING value""",
+            (POLLER_KEY, value, owner, time.time() - ttl_seconds),
+        ).fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    return bool(row) and str(row["value"]).split("|", 1)[0] == owner
+
+
+def renew_bot_poller(owner):
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE settings SET value=? WHERE key=? AND split_part(value, '|', 1)=?",
+            (f"{owner}|{time.time():.3f}", POLLER_KEY, owner),
+        )
+        held = cur.rowcount > 0
+        conn.commit()
+    finally:
+        conn.close()
+    return held
+
+
+def release_bot_poller(owner):
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE settings SET value='' WHERE key=? AND split_part(value, '|', 1)=?",
+            (POLLER_KEY, owner),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_setting(key, default=None):
     conn = get_connection()
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()

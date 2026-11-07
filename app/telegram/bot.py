@@ -1,19 +1,74 @@
+import asyncio
+import os
+import socket
+import uuid
+
 from telegram import BotCommand
 from telegram.error import BadRequest, Conflict, NetworkError, TimedOut
 from telegram.ext import ApplicationBuilder
 
 from app.config import settings
+from app.database import claim_bot_poller, release_bot_poller, renew_bot_poller
 
 application = None
+
+POLLER_TTL = 45
+POLLER_TICK = 10
+poller_owner = f"{socket.gethostname()[:24]}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
+_poller_task = None
+
+
+def _renew_or_keep(owner):
+    try:
+        return renew_bot_poller(owner)
+    except Exception as e:
+        print(f"[bot] could not renew the bot lease ({e}) — continuing to poll")
+        return True
+
+
+async def _supervise_polling(app):
+    """Hold the single getUpdates lease; a second replica stays website-only."""
+    polling = False
+    waiting_logged = False
+    while True:
+        try:
+            if not polling:
+                try:
+                    claimed = claim_bot_poller(poller_owner, POLLER_TTL)
+                except Exception as e:
+                    # A database hiccup must not leave the shop bot deaf.
+                    print(f"[bot] could not read the bot lease ({e}) — polling anyway")
+                    claimed = True
+                if claimed:
+                    await app.updater.start_polling(drop_pending_updates=True)
+                    polling = True
+                    waiting_logged = False
+                    print(f"[bot] long-polling started (lease {poller_owner})")
+                elif not waiting_logged:
+                    print("[bot] another instance holds the bot lease — website-only, will retry")
+                    waiting_logged = True
+            elif not _renew_or_keep(poller_owner):
+                print("[bot] bot lease taken over by another instance — stopping polling")
+                polling = False
+                try:
+                    await app.updater.stop()
+                except Exception:
+                    pass
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print(f"[bot] polling supervisor error: {e}")
+            polling = False
+        await asyncio.sleep(POLLER_TICK)
 
 
 async def _on_error(update, context):
     err = context.error
     if isinstance(err, Conflict):
         print(
-            "[bot] CONFLICT: another process is polling this bot token. "
-            "Stop the duplicate instance/webhook — otherwise button taps are answered by "
-            "the wrong process and admins see 'Query is too old'."
+            "[bot] CONFLICT: another process polls this token outside the lease "
+            "(another host/service sharing the token, or the same token with its own "
+            "database). Keep exactly one bot host, or point both at the same DATABASE_URL."
         )
         return
     if isinstance(err, BadRequest) and "query is too old" in str(err).lower():
@@ -45,6 +100,7 @@ def create_application():
 
 
 async def startup(app):
+    global _poller_task
     await app.initialize()
     await app.start()
     try:
@@ -63,8 +119,8 @@ async def startup(app):
         print(f"[bot] set_my_commands failed: {e}")
     if settings.USE_POLLING:
         if app.updater:
-            await app.updater.start_polling(drop_pending_updates=True)
-        print("[bot] running in long-polling mode")
+            _poller_task = asyncio.create_task(_supervise_polling(app))
+            print("[bot] running in long-polling mode")
     else:
         try:
             await app.bot.set_webhook(f"{settings.BASE_URL}/tg/webhook/{settings.WEBHOOK_SECRET}")
@@ -74,13 +130,27 @@ async def startup(app):
 
 
 async def shutdown(app):
+    global _poller_task
+    if _poller_task is not None:
+        _poller_task.cancel()
+        try:
+            await _poller_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        _poller_task = None
     try:
         if settings.USE_POLLING and app.updater:
-            await app.updater.stop()
+            if app.updater.running:
+                await app.updater.stop()
         else:
             await app.bot.delete_webhook()
     except Exception:
         pass
+    if settings.USE_POLLING:
+        try:
+            release_bot_poller(poller_owner)
+        except Exception as e:
+            print(f"[bot] lease release failed: {e}")
     await app.stop()
     await app.shutdown()
 
