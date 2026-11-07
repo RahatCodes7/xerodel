@@ -41,8 +41,8 @@ def create_order(user_id, items):
             if product is None or not product["is_active"]:
                 raise ValueError("Product is not available")
             available = conn.execute(
-                "SELECT COUNT(*) FROM inventory WHERE product_id = ? AND status = 'available'", (product_id,)
-            ).fetchone()[0]
+                "SELECT COUNT(*) AS n FROM inventory WHERE product_id = ? AND status = 'available'", (product_id,)
+            ).fetchone()["n"]
             if available < qty:
                 raise OutOfStockError(product["title"], available)
             total += product["price_bdt"] * qty
@@ -50,10 +50,10 @@ def create_order(user_id, items):
         code = gen_order_code()
         expires_at = (datetime.now(timezone.utc) + timedelta(minutes=get_expiry_minutes())).strftime("%Y-%m-%dT%H:%M:%S")
         cur = conn.execute(
-            "INSERT INTO orders (order_code, user_id, status, total_bdt, payment_method, created_at, expires_at) VALUES (?,?, 'pending_payment', ?, NULL, ?, ?)",
+            "INSERT INTO orders (order_code, user_id, status, total_bdt, payment_method, created_at, expires_at) VALUES (?,?, 'pending_payment', ?, NULL, ?, ?) RETURNING id",
             (code, user_id, total, now_iso(), expires_at),
         )
-        order_id = cur.lastrowid
+        order_id = cur.fetchone()["id"]
         for product_id, qty, unit_price in parsed:
             conn.execute(
                 "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (?,?,?,?)",
@@ -143,9 +143,9 @@ def list_orders(status=None, limit=100, offset=0):
 def count_orders(status=None):
     conn = get_connection()
     if status:
-        n = conn.execute("SELECT COUNT(*) FROM orders WHERE status = ?", (status,)).fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) AS n FROM orders WHERE status = ?", (status,)).fetchone()["n"]
     else:
-        n = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
     conn.close()
     return n
 
@@ -153,8 +153,8 @@ def count_orders(status=None):
 def revenue_total():
     conn = get_connection()
     n = conn.execute(
-        "SELECT COALESCE(SUM(total_bdt), 0) FROM orders WHERE status IN ('paid','delivered')"
-    ).fetchone()[0]
+        "SELECT COALESCE(SUM(total_bdt), 0) AS total FROM orders WHERE status IN ('paid','delivered')"
+    ).fetchone()["total"]
     conn.close()
     return n
 
@@ -249,14 +249,14 @@ async def expire_pending_orders(bot=None):
 
 def stats_summary():
     conn = get_connection()
-    orders_total = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
-    pending_payment = conn.execute("SELECT COUNT(*) FROM orders WHERE status='pending_payment'").fetchone()[0]
-    awaiting_proof = conn.execute("SELECT COUNT(*) FROM orders WHERE status='awaiting_proof'").fetchone()[0]
-    delivered = conn.execute("SELECT COUNT(*) FROM orders WHERE status='delivered'").fetchone()[0]
-    revenue = conn.execute("SELECT COALESCE(SUM(total_bdt),0) FROM orders WHERE status IN ('paid','delivered')").fetchone()[0]
-    proofs_pending = conn.execute("SELECT COUNT(*) FROM payment_proofs WHERE status='pending'").fetchone()[0]
-    stock_available = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='available'").fetchone()[0]
-    users_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    orders_total = conn.execute("SELECT COUNT(*) AS n FROM orders").fetchone()["n"]
+    pending_payment = conn.execute("SELECT COUNT(*) AS n FROM orders WHERE status='pending_payment'").fetchone()["n"]
+    awaiting_proof = conn.execute("SELECT COUNT(*) AS n FROM orders WHERE status='awaiting_proof'").fetchone()["n"]
+    delivered = conn.execute("SELECT COUNT(*) AS n FROM orders WHERE status='delivered'").fetchone()["n"]
+    revenue = conn.execute("SELECT COALESCE(SUM(total_bdt),0) AS total FROM orders WHERE status IN ('paid','delivered')").fetchone()["total"]
+    proofs_pending = conn.execute("SELECT COUNT(*) AS n FROM payment_proofs WHERE status='pending'").fetchone()["n"]
+    stock_available = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='available'").fetchone()["n"]
+    users_count = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
     conn.close()
     return {
         "orders_total": orders_total,

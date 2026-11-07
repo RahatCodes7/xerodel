@@ -1,6 +1,6 @@
 # Xerodel — Telegram + Website Account Store
 
-A single-process FastAPI app with a website, admin panel, and Telegram bot that share one SQLite database. Orders are fully synced between the website and the bot.
+A single-process FastAPI app with a website, admin panel, and Telegram bot that share one PostgreSQL database. Orders are fully synced between the website and the bot.
 
 ## Features
 - **Website**: product shop, checkout, order tracking, Telegram Login Widget auth
@@ -14,12 +14,13 @@ A single-process FastAPI app with a website, admin panel, and Telegram bot that 
 
 ## Quick Start
 
-1. **Copy `.env.example` to `.env` and fill in:**
+1. **Run PostgreSQL 14+ and create a database**, then configure `.env` (`DATABASE_URL`). The easiest local setup is Docker Compose, which starts both the app and a Postgres container:
    ```bash
-   cp .env.example .env
-   # edit .env with your values
+   cp .env.example .env   # or create .env with the values below
+   docker compose up -d --build
    ```
    Required:
+   - `DATABASE_URL` — e.g. `postgresql://xerodel:xerodel@db:5432/xerodel` (inside Compose) or your Dokploy/Postgres connection string
    - `BOT_TOKEN` — from @BotFather
    - `BOT_USERNAME` — bot username (without @) for Telegram Login Widget
    - `PUBLIC_CHANNEL_ID` — channel ID where orders are posted (bot must be admin)
@@ -59,7 +60,8 @@ A single-process FastAPI app with a website, admin panel, and Telegram bot that 
    - Fallback: set `USE_POLLING=true` if tunnel is down
 
 ## Admin Commands (Bot)
-- `/admin` — main menu
+- `/admin` — main menu (pending payments, recent orders, stock, products, inventory, stats, settings)
+- `/order <code>` — inspect any order (buyer, items, proof, accept/reject/cancel actions)
 - `/admin_stats` — stats summary
 - `/admin_settings` — view settings
 - `/set_bkash <number>` — update bKash number
@@ -69,12 +71,18 @@ A single-process FastAPI app with a website, admin panel, and Telegram bot that 
 - `/set_expiry <minutes>` — order expiry time
 - `/set_instructions <text>` — payment instructions
 
+Add Product asks for platform, title, price and an optional description (`/skip`).
+
 ## User Commands (Bot)
-- `/start` — welcome + menu
-- `/browse` or menu → browse products
-- `/buy [product_id]` — buy flow
-- `/orders` — list your orders
-- `/proof [order_code]` — submit payment proof
+- `/start` — welcome + menu (admins also see an Admin button)
+- `/help` — ordering guide and command list
+- `/browse` — paginated product catalog
+- `/buy [product_id]` — buy flow (quantity → confirm, with Cancel buttons)
+- `/orders` — clickable order list with live status
+- `/proof [order_code]` — submit payment proof (bKash/Nagad, TrxID caption)
+- `/cancel` — stop the current step
+
+After a proof is submitted the bot shows check-status and website buttons; each order page also has refresh, proof and website actions.
 
 ## Website Routes
 - `/` — landing
@@ -97,7 +105,23 @@ A single-process FastAPI app with a website, admin panel, and Telegram bot that 
 - Audit log: all admin actions
 
 ## Database Schema
-See `app/database.py` — tables: `users`, `products`, `inventory`, `orders`, `order_items`, `order_inventory`, `payment_proofs`, `settings`, `admin_actions`.
+PostgreSQL tables are created automatically on startup (`app/database.py`): `users`, `products`, `inventory`, `orders`, `order_items`, `order_inventory`, `payment_proofs`, `settings`, `admin_actions`.
+
+### Migrating existing SQLite data
+If you already ran the SQLite version, copy the old data once:
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/db \
+  python scripts/migrate_sqlite_to_postgres.py --sqlite data/app.db --replace
+```
+Then copy `data/proofs/` to the server's `PROOF_DIR` (same path, e.g. `/app/data/proofs`). The `--replace` flag wipes existing target rows; omit it for an empty database.
+
+## Deployment (Docker / Dokploy)
+`docker-compose.yml` starts PostgreSQL plus the app and waits for the database healthcheck.
+1. Set `DATABASE_URL`, bot tokens, channel IDs and `BASE_URL` in the environment (Dokploy → Environment).
+2. Mount a persistent volume at `/app/data` for payment proof images.
+3. Deploy the Compose stack; the schema is created on first start.
+
+If you use an external managed Postgres, point `DATABASE_URL` at it and remove the `db` service.
 
 ## Validation Checklist
 1. Place order via bot → public channel post appears with masked buyer
@@ -115,7 +139,7 @@ See `app/database.py` — tables: `users`, `products`, `inventory`, `orders`, `o
 app/
   main.py                 # FastAPI app, lifespan, webhook, expiry sweep
   config.py               # pydantic-settings from .env
-  database.py             # sqlite3 helpers, WAL, schema, init, settings, audit
+  database.py             # PostgreSQL schema, connection wrapper, init, settings, audit
   services/
     orders.py             # create order, status transitions, expiry sweep
     inventory.py          # stock count, assign items (BEGIN IMMEDIATE), release
@@ -139,8 +163,9 @@ requirements.txt, .env.example, run.sh, tunnel.sh, README.md
 
 ## Notes
 - Single process: uvicorn runs FastAPI + python-telegram-bot Application in same loop
-- SQLite with WAL mode handles concurrency (single writer, many readers)
-- Race-safe inventory assignment via `BEGIN IMMEDIATE` transaction + re-check at verification
+- PostgreSQL handles concurrency; every request opens a short-lived connection and writes are committed per operation
+- Race-safe inventory assignment via a transaction with `SELECT ... FOR UPDATE SKIP LOCKED` + re-check at verification
+- Timestamps are stored as ISO-8601 UTC text (`YYYY-MM-DDTHH:MM:SS`) for compatibility with existing data
 - Credentials only visible to buyer (DM + auth-checked order page) — never in public channel
 - If bot DM fails (user blocked), credentials still available on website; admin alerted in private channel
 - Tunnel fallback: set `USE_POLLING=true` for long-polling mode when webhook unreachable

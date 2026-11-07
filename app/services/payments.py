@@ -41,9 +41,19 @@ async def submit_proof(order_id, user_id, method, transaction_id, sender_number=
     if not transaction_id or not transaction_id.strip():
         return {"ok": False, "error": "trxid_required"}
 
+    transaction_id = transaction_id.strip()
     conn = get_connection()
     try:
         conn.execute("BEGIN IMMEDIATE")
+        duplicate = conn.execute(
+            """SELECT id FROM payment_proofs
+               WHERE order_id <> ? AND status <> 'rejected'
+                 AND UPPER(transaction_id) = UPPER(?)""",
+            (order_id, transaction_id),
+        ).fetchone()
+        if duplicate is not None:
+            conn.rollback()
+            return {"ok": False, "error": "trxid_in_use"}
         existing = conn.execute("SELECT * FROM payment_proofs WHERE order_id = ?", (order_id,)).fetchone()
         if existing is not None:
             if existing["status"] != "pending":
@@ -60,10 +70,10 @@ async def submit_proof(order_id, user_id, method, transaction_id, sender_number=
             cur = conn.execute(
                 """INSERT INTO payment_proofs (order_id, method, transaction_id, sender_number,
                    photo_file_id, photo_path, status, created_at)
-                   VALUES (?,?,?,?,?,?,'pending',?)""",
+                   VALUES (?,?,?,?,?,?,'pending',?) RETURNING id""",
                 (order_id, method, transaction_id.strip(), sender_number, photo_file_id, photo_path, now_iso()),
             )
-            proof_id = cur.lastrowid
+            proof_id = cur.fetchone()["id"]
         conn.execute(
             "UPDATE orders SET status='awaiting_proof', payment_method=? WHERE id=?",
             (method, order_id),

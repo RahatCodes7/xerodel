@@ -1,3 +1,4 @@
+import html
 import os
 
 from app.config import settings
@@ -24,21 +25,26 @@ def fmt_money(amount):
     return f"{settings.SITE_CURRENCY}{amount:,.2f}"
 
 
+def esc(value):
+    """Escape user/product supplied text before embedding it in HTML messages."""
+    return html.escape(str(value or ""))
+
+
 def masked_buyer(user):
     if user and user.get("username"):
-        return f"@{user['username']}"
+        return f"@{esc(user['username'])}"
     if user:
         return f"Buyer #{str(user['telegram_id'])[-4:]}"
     return "Buyer"
 
 
 def buyer_label(user):
-    name = (user or {}).get("full_name") or "Unknown"
+    name = esc((user or {}).get("full_name") or "Unknown")
     username = (user or {}).get("username")
     uid = (user or {}).get("telegram_id")
     parts = [name]
     if username:
-        parts.append(f"@{username}")
+        parts.append(f"@{esc(username)}")
     if uid:
         parts.append(f"[id: {uid}]")
     return " ".join(parts)
@@ -48,7 +54,7 @@ def items_summary(items):
     lines = []
     for it in items:
         title = it.get("product_title") or "Product"
-        lines.append(f"• {title} × {it['quantity']}")
+        lines.append(f"• {esc(title)} × {it['quantity']}")
     return "\n".join(lines)
 
 
@@ -76,11 +82,11 @@ def private_proof_text(proof, order, items, buyer_user=None):
         f"👤 Buyer: {buyer_label(buyer_user)}",
         items_summary(items),
         f"💰 Amount: {fmt_money(order['total_bdt'])}",
-        f"🏦 Method: {proof.get('method') or 'n/a'}",
-        f"🔢 TrxID: {proof.get('transaction_id') or 'n/a'}",
+        f"🏦 Method: {esc(proof.get('method') or 'n/a')}",
+        f"🔢 TrxID: {esc(proof.get('transaction_id') or 'n/a')}",
     ]
     if proof.get("sender_number"):
-        lines.append(f"📱 Sender: {proof['sender_number']}")
+        lines.append(f"📱 Sender: {esc(proof['sender_number'])}")
     lines += ["", "Review the transaction and accept or reject."]
     return "\n".join(lines)
 
@@ -163,7 +169,8 @@ async def edit_private_proof(bot, proof, order, items, decision_text, admin_user
     caption = private_proof_text(proof, order, items)
     admin_name = ""
     if admin_user:
-        admin_name = admin_user.get("username") or admin_user.get("full_name") or str(admin_user.get("telegram_id", ""))
+        raw_name = admin_user.get("username") or admin_user.get("full_name") or str(admin_user.get("telegram_id", ""))
+        admin_name = esc(raw_name)
     caption += f"\n\n{decision_text}"
     if admin_name:
         caption += f" by @{admin_name}" if admin_name.startswith("@") or admin_name.isdigit() is False else f" by {admin_name}"

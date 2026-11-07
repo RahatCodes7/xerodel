@@ -6,6 +6,18 @@ from app.config import settings
 application = None
 
 
+async def _on_error(update, context):
+    print(f"[bot] handler error: {context.error!r}")
+    try:
+        message = update.effective_message if update else None
+        if message is not None:
+            await message.reply_text(
+                "⚠️ Something went wrong on our side. Please try again, or send /start to reset."
+            )
+    except Exception:
+        pass
+
+
 def create_application():
     app = ApplicationBuilder().token(settings.BOT_TOKEN).build()
     from app.telegram import handlers_admin, handlers_channel, handlers_user
@@ -13,6 +25,7 @@ def create_application():
     handlers_user.register(app)
     handlers_admin.register(app)
     handlers_channel.register(app)
+    app.add_error_handler(_on_error)
     return app
 
 
@@ -24,8 +37,10 @@ async def startup(app):
             [
                 BotCommand("start", "Start"),
                 BotCommand("browse", "Browse products"),
-                BotCommand("orders", "My orders"),
+                BotCommand("orders", "My orders and status"),
                 BotCommand("proof", "Submit payment proof"),
+                BotCommand("help", "How to order"),
+                BotCommand("cancel", "Cancel the current step"),
                 BotCommand("admin", "Admin menu (admins only)"),
             ]
         )

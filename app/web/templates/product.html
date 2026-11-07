@@ -11,7 +11,7 @@
   </div>
 
   <div class="cols">
-    <div class="card product">
+    <div class="card product product-detail p-{{ product.platform }}">
       <div class="product-head">
         <span class="card-platform">{{ labels[product.platform] if labels else product.platform }}</span>
         <span class="stock-pill {% if stock == 0 %}out{% endif %}">

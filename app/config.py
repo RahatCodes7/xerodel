@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     USE_POLLING: bool = False
 
     ORDER_EXPIRY_MINUTES: int = 30
+    DATABASE_URL: str = ""
+    # Only used by scripts/migrate_sqlite_to_postgres.py to read legacy data.
     DATABASE_PATH: str = "data/app.db"
     PROOF_DIR: str = "data/proofs"
 

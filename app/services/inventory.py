@@ -4,8 +4,8 @@ from app.database import get_connection, log_admin_action, now_iso
 def available_count(product_id):
     conn = get_connection()
     n = conn.execute(
-        "SELECT COUNT(*) FROM inventory WHERE product_id = ? AND status = 'available'", (product_id,)
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS n FROM inventory WHERE product_id = ? AND status = 'available'", (product_id,)
+    ).fetchone()["n"]
     conn.close()
     return n
 
@@ -26,12 +26,13 @@ def counts_by_product():
 def add_item(product_id, account_username, account_password, cookie_data=None):
     conn = get_connection()
     cur = conn.execute(
-        "INSERT INTO inventory (product_id, account_username, account_password, cookie_data, status, created_at) VALUES (?,?,?,?, 'available', ?)",
+        "INSERT INTO inventory (product_id, account_username, account_password, cookie_data, status, created_at) VALUES (?,?,?,?, 'available', ?) RETURNING id",
         (product_id, account_username, account_password, cookie_data, now_iso()),
     )
+    inventory_id = cur.fetchone()["id"]
     conn.commit()
     conn.close()
-    return cur.lastrowid
+    return inventory_id
 
 
 def bulk_add(product_id, text):
@@ -73,7 +74,8 @@ def assign_to_order(order_id, items):
             product_id = int(item["product_id"])
             qty = int(item.get("quantity") or item.get("qty") or 0)
             rows = conn.execute(
-                "SELECT id FROM inventory WHERE product_id = ? AND status = 'available' LIMIT ?",
+                "SELECT id FROM inventory WHERE product_id = ? AND status = 'available' "
+                "ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED",
                 (product_id, qty),
             ).fetchall()
             if len(rows) < qty:
@@ -87,7 +89,7 @@ def assign_to_order(order_id, items):
             )
             for inv_id in ids:
                 conn.execute(
-                    "INSERT OR IGNORE INTO order_inventory (order_id, inventory_id) VALUES (?, ?)",
+                    "INSERT INTO order_inventory (order_id, inventory_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
                     (order_id, inv_id),
                 )
             assigned_ids.extend(ids)
@@ -168,9 +170,9 @@ def delete_item(inventory_id):
 
 def inventory_stats():
     conn = get_connection()
-    available = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='available'").fetchone()[0]
-    assigned = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='assigned'").fetchone()[0]
-    sold = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='sold'").fetchone()[0]
+    available = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='available'").fetchone()["n"]
+    assigned = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='assigned'").fetchone()["n"]
+    sold = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='sold'").fetchone()["n"]
     conn.close()
     return {"available": available, "assigned": assigned, "sold": sold}
 

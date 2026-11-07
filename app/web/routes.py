@@ -57,9 +57,12 @@ async def index(request: Request, user=Depends(get_current_user)):
 
 
 @router.get("/shop")
-async def shop(request: Request, user=Depends(get_current_user)):
+async def shop(request: Request, platform: str = "", user=Depends(get_current_user)):
     products = _with_stock(products_svc.list_products())
-    return render(request, "shop.html", user, products=products)
+    platform_filter = platform if platform in products_svc.PLATFORMS else ""
+    if platform_filter:
+        products = [p for p in products if p["platform"] == platform_filter]
+    return render(request, "shop.html", user, products=products, platform_filter=platform_filter)
 
 
 @router.get("/product/{product_id}")

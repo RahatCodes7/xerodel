@@ -1,53 +1,55 @@
 import os
-import sqlite3
 import time
+
+import psycopg
+from psycopg.rows import dict_row
 
 from app.config import settings
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
-    telegram_id INTEGER PRIMARY KEY,
+    telegram_id BIGINT PRIMARY KEY,
     full_name TEXT,
     username TEXT,
     photo_url TEXT,
-    is_admin INTEGER DEFAULT 0,
+    is_admin INTEGER NOT NULL DEFAULT 0,
     created_at TEXT,
     last_seen_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     platform TEXT NOT NULL CHECK(platform IN ('telegram','crunchyroll','cookie')),
     title TEXT NOT NULL,
     description TEXT DEFAULT '',
-    price_bdt REAL NOT NULL,
-    is_active INTEGER DEFAULT 1,
+    price_bdt DOUBLE PRECISION NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL REFERENCES products(id),
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL REFERENCES products(id),
     account_username TEXT,
     account_password TEXT,
     cookie_data TEXT,
     status TEXT NOT NULL DEFAULT 'available' CHECK(status IN ('available','assigned','sold')),
-    assigned_order_id INTEGER,
+    assigned_order_id BIGINT,
     created_at TEXT,
     sold_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_inventory_product_status ON inventory(product_id, status);
 
 CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     order_code TEXT UNIQUE NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES users(telegram_id),
+    user_id BIGINT NOT NULL REFERENCES users(telegram_id),
     status TEXT NOT NULL DEFAULT 'pending_payment',
-    total_bdt REAL NOT NULL,
+    total_bdt DOUBLE PRECISION NOT NULL,
     payment_method TEXT,
     created_at TEXT,
     expires_at TEXT,
-    public_msg_id INTEGER,
+    public_msg_id BIGINT,
     paid_at TEXT,
     delivered_at TEXT,
     cancel_reason TEXT,
@@ -58,30 +60,30 @@ CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 
 CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL REFERENCES orders(id),
-    product_id INTEGER NOT NULL REFERENCES products(id),
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id),
+    product_id BIGINT NOT NULL REFERENCES products(id),
     quantity INTEGER NOT NULL,
-    unit_price REAL NOT NULL
+    unit_price DOUBLE PRECISION NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS order_inventory (
-    order_id INTEGER NOT NULL REFERENCES orders(id),
-    inventory_id INTEGER NOT NULL REFERENCES inventory(id),
+    order_id BIGINT NOT NULL REFERENCES orders(id),
+    inventory_id BIGINT NOT NULL REFERENCES inventory(id),
     PRIMARY KEY (order_id, inventory_id)
 );
 
 CREATE TABLE IF NOT EXISTS payment_proofs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER UNIQUE NOT NULL REFERENCES orders(id),
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT UNIQUE NOT NULL REFERENCES orders(id),
     method TEXT,
     transaction_id TEXT,
     sender_number TEXT,
     photo_file_id TEXT,
     photo_path TEXT,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
-    private_msg_id INTEGER,
-    reviewed_by INTEGER,
+    private_msg_id BIGINT,
+    reviewed_by BIGINT,
     reviewed_at TEXT,
     note TEXT,
     created_at TEXT
@@ -93,8 +95,8 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE TABLE IF NOT EXISTS admin_actions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    admin_id INTEGER,
+    id BIGSERIAL PRIMARY KEY,
+    admin_id BIGINT,
     action TEXT,
     target_type TEXT,
     target_id TEXT,
@@ -115,21 +117,75 @@ def now_iso():
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
 
 
+class _NullCursor:
+    """Returned for SQLite statements that have no PostgreSQL equivalent."""
+
+    rowcount = 0
+
+    def fetchone(self):
+        return None
+
+    def fetchall(self):
+        return []
+
+
+class PgConnection:
+    """Small compatibility wrapper so the service layer can keep using `?`
+    placeholders and SQLite-style calls (`conn.execute(...).fetchone()`).
+    Rows are returned as dicts (psycopg dict_row).
+    """
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, sql, params=None):
+        statement = sql.strip()
+        upper = statement.upper()
+        if upper.startswith("PRAGMA") or upper.startswith("BEGIN IMMEDIATE"):
+            # PostgreSQL starts a transaction implicitly; nothing to do.
+            return _NullCursor()
+        translated = sql.replace("?", "%s")
+        return self._conn.execute(translated, params)
+
+    def executescript(self, script):
+        for statement in script.split(";"):
+            if statement.strip():
+                self._conn.execute(statement)
+        self._conn.commit()
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def normalize_database_url(url):
+    """Accept both postgres:// (Heroku-style) and postgresql:// URLs."""
+    if url.startswith("postgres://"):
+        return "postgresql://" + url[len("postgres://"):]
+    return url
+
+
 def get_connection():
-    conn = sqlite3.connect(settings.DATABASE_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=10000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    if not settings.DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL is not set. Configure a PostgreSQL connection string "
+            "(e.g. postgresql://user:password@host:5432/dbname)."
+        )
+    conn = psycopg.connect(
+        normalize_database_url(settings.DATABASE_URL), row_factory=dict_row, connect_timeout=15
+    )
+    return PgConnection(conn)
 
 
 def init_db():
-    os.makedirs(os.path.dirname(settings.DATABASE_PATH) or ".", exist_ok=True)
     os.makedirs(settings.PROOF_DIR, exist_ok=True)
     conn = get_connection()
     conn.executescript(SCHEMA)
-    conn.commit()
 
     default_settings = {
         "site_name": settings.SITE_NAME,
@@ -142,10 +198,13 @@ def init_db():
         "expiry_minutes": str(settings.ORDER_EXPIRY_MINUTES),
     }
     for key, value in default_settings.items():
-        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING",
+            (key, value),
+        )
     conn.commit()
 
-    count = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) AS n FROM products").fetchone()["n"]
     if count == 0 and settings.SEED_DEMO:
         for platform, title, description, price in DEMO_PRODUCTS:
             conn.execute(
@@ -169,7 +228,7 @@ def get_setting(key, default=None):
 def set_setting(key, value):
     conn = get_connection()
     conn.execute(
-        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
         (key, str(value)),
     )
     conn.commit()
@@ -207,7 +266,7 @@ def upsert_user(telegram_id, full_name=None, username=None, photo_url=None):
     conn.execute(
         """INSERT INTO users (telegram_id, full_name, username, photo_url, is_admin, created_at, last_seen_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(telegram_id) DO UPDATE SET
+           ON CONFLICT (telegram_id) DO UPDATE SET
              full_name = excluded.full_name,
              username = excluded.username,
              photo_url = excluded.photo_url,

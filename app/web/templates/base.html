@@ -6,10 +6,23 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0a0c11">
 <title>{% block title %}{{ site.site_name }}{% endblock %}</title>
+<meta name="description" content="{{ site.site_name }} — premium Telegram, Crunchyroll accounts and cookies with instant delivery, verified bKash &amp; Nagad payments.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="topbar-dot" aria-hidden="true"></span>
+    <span>Instant delivery after payment verification</span>
+    <span class="topbar-sep" aria-hidden="true"></span>
+    <span>Secure bKash &amp; Nagad payments</span>
+  </div>
+</div>
 
 <header class="site-header navbar">
   <div class="header-inner nav-inner">
@@ -77,17 +90,51 @@
 </main>
 
 <footer class="footer">
-  <div class="container">
-    <div class="footer-brand">
-      <span class="brand-mark" style="width:26px;height:26px" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5 5.5 18h13L22 8.5l-4.5 3L12 5l-5.5 6.5z"/><path d="M5.5 21h13"/></svg>
-      </span>
-      <span>{{ site.site_name }} — sell Telegram, Crunchyroll accounts &amp; cookies</span>
+  <div class="container footer-grid">
+    <div class="footer-brandcol">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5 5.5 18h13L22 8.5l-4.5 3L12 5l-5.5 6.5z"/><path d="M5.5 21h13"/></svg>
+        </span>
+        <span>{{ site.site_name }}</span>
+      </a>
+      <p class="footer-tag">Premium Telegram &amp; Crunchyroll accounts and cookies — verified payments, instant delivery, and order tracking in one place.</p>
+      <span class="footer-status"><span class="dot" aria-hidden="true"></span> Store online · 24/7 support</span>
     </div>
-    <div class="footer-meta">
-      {% if site.public_channel_id %}<a href="https://t.me/c/{{ site.public_channel_id[4:] if site.public_channel_id.startswith('-100') else site.public_channel_id }}" target="_blank" rel="noopener">Public channel</a>{% endif %}
-      <span>Secure payments via bKash &amp; Nagad</span>
+
+    <nav class="footer-col" aria-label="Shop">
+      <h4>Shop</h4>
+      <a href="/shop">All products</a>
+      <a href="/shop?platform=telegram">Telegram</a>
+      <a href="/shop?platform=crunchyroll">Crunchyroll</a>
+      <a href="/shop?platform=cookie">Cookies</a>
+    </nav>
+
+    <nav class="footer-col" aria-label="Account">
+      <h4>Account</h4>
+      <a href="/orders">My orders</a>
+      {% if user %}
+        <a href="/logout">Logout</a>
+      {% else %}
+        <a href="/login">Login with Telegram</a>
+      {% endif %}
+      {% if site.public_channel_id %}
+        <a href="https://t.me/c/{{ site.public_channel_id[4:] if site.public_channel_id.startswith('-100') else site.public_channel_id }}" target="_blank" rel="noopener">Public channel</a>
+      {% endif %}
+    </nav>
+
+    <div class="footer-col">
+      <h4>Payments</h4>
+      <div class="footer-pay">
+        <span class="pay-mini bkash">bKash</span>
+        <span class="pay-mini nagad">Nagad</span>
+      </div>
+      <p class="footer-note">Every payment is manually verified by our team before delivery.</p>
     </div>
+  </div>
+  <div class="container footer-bottom">
+    <span>© {{ site.site_name }} · All rights reserved</span>
+    <span>Built for fast, safe deliveries</span>
   </div>
 </footer>
 

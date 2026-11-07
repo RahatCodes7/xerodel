@@ -3,99 +3,89 @@
 {% block content %}
 <div class="container">
   <div class="login-wrap">
-    <div class="login-box">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5 5.5 18h13L22 8.5l-4.5 3L12 5l-5.5 6.5z"/><path d="M5.5 21h13"/></svg>
-      </span>
-      <h1>Login with Telegram</h1>
-      <p class="muted">Use your Telegram account to browse, order and track deliveries. Your orders are synced with the bot.</p>
+    <div class="login-shell">
+      <aside class="login-aside">
+        <span class="eyebrow">Welcome back</span>
+        <h2>One account.<br>Every order.</h2>
+        <p>Sign in with Telegram to place orders, track payments and get your credentials the moment an admin verifies them.</p>
+        <ul class="login-perks">
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            Track every order in one place
+          </li>
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            Get delivery notifications from the bot
+          </li>
+          <li>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
+            No password to remember
+          </li>
+        </ul>
+        <div class="login-trust">
+          <span class="avatar-stack" aria-hidden="true"><span>X</span><span>T</span><span>S</span></span>
+          <span>Trusted by buyers ordering every day</span>
+        </div>
+      </aside>
 
-      {% if bot_username %}
-      <div class="tg-login">
-      <script src="https://telegram.org/js/telegram-widget.js?22"
-              data-telegram-login="{{ bot_username }}"
-              data-size="large"
-              data-onauth="onTelegramAuth(user)"
-              data-request-access="write"
-              async></script>
-      <script>
-      function onTelegramAuth(user) {
-        fetch('/api/auth/telegram', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(Object.assign({next: {{ next_url|tojson }}}, user))
-        })
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          if (d.ok) { window.location.href = d.next || '/'; }
-          else { alert('Login failed: ' + (d.error || 'verification error')); }
-        })
-        .catch(function(){ alert('Login failed'); });
-      }
-      function switchTelegramAccount() {
-        localStorage.removeItem('telegram_login_widget');
-        sessionStorage.removeItem('telegram_login_widget');
-        document.cookie = 'sp_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        window.location.reload();
-      }
-      function hardSwitchAccount() {
-        document.cookie.split(";").forEach(function(c) {
-          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
-        });
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
-      }
-      </script>
-      </div>
-      <div class="switch-account">
-        <button class="btn btn-ghost btn-block" onclick="switchTelegramAccount()" type="button">
-          🔄 Switch to a different Telegram account
-        </button>
-        <button class="btn btn-ghost btn-block" style="margin-top:8px; opacity:0.7;" onclick="hardSwitchAccount()" type="button">
-          🧹 Clear ALL site cookies &amp; reload (force fresh login)
-        </button>
-        <p class="muted" style="font-size:12px;">If the same account keeps appearing: use Incognito/Private mode, or click "Clear ALL site cookies" above.</p>
-      </div>
-      {% else %}
-      <div class="alert alert-warning" role="alert">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
-        <span>Telegram Login Widget is not configured yet (set BOT_USERNAME in .env).</span>
-      </div>
-      {% endif %}
+      <div class="login-main">
+        <div class="login-box">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5 5.5 18h13L22 8.5l-4.5 3L12 5l-5.5 6.5z"/><path d="M5.5 21h13"/></svg>
+          </span>
+          <h1>Login with Telegram</h1>
+          <p class="muted">No password needed — confirm once and you're in.</p>
 
-      {% if request.query_params.get('err') == 'admin_required' %}
-      <div class="alert alert-danger" role="alert">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 15.5v.01"/></svg>
-        <span>Admin access required.</span>
-      </div>
-      {% endif %}
+          {% if bot_username %}
+          <div class="tg-login">
+          <script src="https://telegram.org/js/telegram-widget.js?22"
+                  data-telegram-login="{{ bot_username }}"
+                  data-size="large"
+                  data-onauth="onTelegramAuth(user)"
+                  data-request-access="write"
+                  async></script>
+          <script>
+          function onTelegramAuth(user) {
+            fetch('/api/auth/telegram', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(Object.assign({next: {{ next_url|tojson }}}, user))
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if (d.ok) { window.location.href = d.next || '/'; }
+              else { alert('Login failed: ' + (d.error || 'verification error')); }
+            })
+            .catch(function(){ alert('Login failed'); });
+          }
+          </script>
+          </div>
+          {% else %}
+          <div class="alert alert-warning" role="alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+            <span>Telegram Login Widget is not configured yet (set BOT_USERNAME in .env).</span>
+          </div>
+          {% endif %}
 
-      <ul class="login-perks">
-        <li>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
-          Track every order in one place
-        </li>
-        <li>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
-          Get delivery notifications from the bot
-        </li>
-        <li>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>
-          No password to remember
-        </li>
-      </ul>
+          {% if request.query_params.get('err') == 'admin_required' %}
+          <div class="alert alert-danger" role="alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 15.5v.01"/></svg>
+            <span>Admin access required.</span>
+          </div>
+          {% endif %}
 
-      <a class="btn btn-ghost btn-block mt-16" href="/shop">Continue browsing without login</a>
+          <a class="btn btn-ghost btn-block mt-16" href="/shop">Continue browsing without login</a>
 
-      <div class="manual-login mt-16">
-        <p class="muted" style="font-size:13px; margin-bottom:12px;">Or log in manually with your Telegram ID:</p>
-        <form method="post" action="/api/auth/manual" class="form">
-          <label>Telegram User ID</label>
-          <input type="number" name="telegram_id" placeholder="e.g. 123456789" required>
-          <button class="btn btn-primary btn-block" type="submit">Login with Telegram ID</button>
-        </form>
-        <p class="muted" style="font-size:11px; margin-top:8px;">Enter your Telegram ID (found by sending /start to the bot). This bypasses the widget cache.</p>
+          <details class="login-manual">
+            <summary>Log in manually with your Telegram ID</summary>
+            <form method="post" action="/api/auth/manual" class="form">
+              <label for="telegram_id">Telegram User ID</label>
+              <input type="number" id="telegram_id" name="telegram_id" placeholder="e.g. 123456789" required>
+              <button class="btn btn-primary btn-block" type="submit">Login with Telegram ID</button>
+              <span class="hint">Find your ID by sending <code>/start</code> to the bot. Use this if the widget keeps showing another account.</span>
+            </form>
+          </details>
+        </div>
       </div>
     </div>
   </div>

@@ -1,19 +1,20 @@
 from app.database import get_channel_ids, get_user, log_admin_action
 from app.services import channels, inventory as inventory_svc, orders as orders_svc
+from app.services.channels import esc
 
 
 def build_credentials_text(order, items, inventory_rows):
     lines = [f"🎉 Order <b>{order['order_code']}</b> confirmed and paid!", ""]
     for item in items:
         invs = [i for i in inventory_rows if i["product_id"] == item["product_id"]]
-        lines.append(f"📦 {item.get('product_title', 'Product')} × {item['quantity']}")
+        lines.append(f"📦 {esc(item.get('product_title', 'Product'))} × {item['quantity']}")
         for idx, inv in enumerate(invs, 1):
             lines.append("")
             lines.append(f"Account {idx}:")
-            lines.append(f"Username: <code>{inv['account_username'] or ''}</code>")
-            lines.append(f"Password: <code>{inv['account_password'] or ''}</code>")
+            lines.append(f"Username: <code>{esc(inv['account_username'])}</code>")
+            lines.append(f"Password: <code>{esc(inv['account_password'])}</code>")
             if inv.get("cookie_data"):
-                lines.append(f"Cookie: <code>{inv['cookie_data']}</code>")
+                lines.append(f"Cookie: <code>{esc(inv['cookie_data'])}</code>")
         lines.append("")
     lines.append("Thank you for your purchase!")
     return "\n".join(lines)

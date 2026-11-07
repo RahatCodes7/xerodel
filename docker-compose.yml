@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: xerodel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-xerodel}
+      POSTGRES_USER: ${POSTGRES_USER:-xerodel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xerodel}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xerodel} -d ${POSTGRES_DB:-xerodel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   xerodel:
     build: .
     image: xerodel:latest
@@ -11,12 +28,17 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - DATABASE_PATH=/app/data/app.db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://xerodel:xerodel@db:5432/xerodel}
       - PROOF_DIR=/app/data/proofs
-    depends_on: []
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+
+volumes:
+  pgdata:

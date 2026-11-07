@@ -8,8 +8,13 @@
       <span class="sep">/</span>
       <span>Shop</span>
     </div>
-    <h1>Shop</h1>
-    <p class="sub">Explore our premium products and services — delivered to your account.</p>
+    <div class="page-head-row">
+      <div>
+        <h1>Shop</h1>
+        <p class="sub">Explore our premium products and services — delivered to your account.</p>
+      </div>
+      <span class="result-count">{{ products|length }} product{% if products|length != 1 %}s{% endif %}</span>
+    </div>
   </div>
 
   <div class="tabs" role="tablist" aria-label="Filter by platform">
@@ -17,38 +22,41 @@
     <a href="/shop?platform=telegram" class="{% if platform_filter == 'telegram' %}active{% endif %}">Telegram</a>
     <a href="/shop?platform=crunchyroll" class="{% if platform_filter == 'crunchyroll' %}active{% endif %}">Crunchyroll</a>
     <a href="/shop?platform=cookie" class="{% if platform_filter == 'cookie' %}active{% endif %}">Cookie</a>
-    <a href="/shop?platform=others" class="{% if platform_filter == 'others' %}active{% endif %}">Others</a>
   </div>
 
   {% if products %}
   <div class="grid">
     {% for p in products %}
-    <article class="card product card-hover">
-      <div class="product-head">
-        <span class="card-platform">
+    <article class="card product product-card card-hover p-{{ p.platform }}">
+      <div class="product-media" aria-hidden="true">
+        <span class="pm-glyph">
           {% if p.platform == 'telegram' %}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 4.3 18.9 19c-.2 1-.8 1.3-1.7.8l-4.6-3.4-2.2 2.1c-.2.3-.5.4-1 .4l.3-4.6 8.4-7.6c.4-.3-.1-.5-.6-.2L7.2 13.1 2.8 11.7c-1-.3-1-1 .2-1.4l17.3-6.7c.8-.3 1.5.2 1.2 1.4z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 18.9 19c-.2 1-.8 1.3-1.7.8l-4.6-3.4-2.2 2.1c-.2.3-.5.4-1 .4l.3-4.6 8.4-7.6c.4-.3-.1-.5-.6-.2L7.2 13.1 2.8 11.7c-1-.3-1-1 .2-1.4l17.3-6.7c.8-.3 1.5.2 1.2 1.4z"/></svg>
           {% elif p.platform == 'crunchyroll' %}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zm4.3 12.8c-1 .9-2.3 1.4-3.9 1.4-3.2 0-5.6-2.4-5.6-5.5S9.2 5.7 12.4 5.7c1.5 0 2.9.5 3.9 1.4l-1.2 1.5c-.8-.6-1.7-1-2.7-1-2 0-3.5 1.5-3.5 3.6s1.5 3.6 3.5 3.6c1 0 1.9-.4 2.7-1z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zm4.3 12.8c-1 .9-2.3 1.4-3.9 1.4-3.2 0-5.6-2.4-5.6-5.5S9.2 5.7 12.4 5.7c1.5 0 2.9.5 3.9 1.4l-1.2 1.5c-.8-.6-1.7-1-2.7-1-2 0-3.5 1.5-3.5 3.6s1.5 3.6 3.5 3.6c1 0 1.9-.4 2.7-1z"/></svg>
           {% elif p.platform == 'cookie' %}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9 10h.01M14 9.5h.01M10.5 15h.01M15 13.5h.01"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 10h.01M14 9.5h.01M10.5 15h.01M15 13.5h.01"/></svg>
           {% else %}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
           {% endif %}
-          {{ labels[p.platform] if labels else p.platform }}
         </span>
-        <span class="stock-pill {% if p.stock == 0 %}out{% endif %}">{{ p.stock }} in stock</span>
       </div>
-      <h3>{{ p.title }}</h3>
-      <p class="desc">{{ p.description }}</p>
-      <div class="card-footer">
-        <span class="price">৳{{ '%d'|format(p.price_bdt|int) }}</span>
-        <span class="muted">Instant delivery</span>
+      <div class="product-body">
+        <div class="product-head">
+          <span class="card-platform">{{ labels[p.platform] if labels else p.platform }}</span>
+          <span class="stock-pill {% if p.stock == 0 %}out{% endif %}">{{ p.stock }} in stock</span>
+        </div>
+        <h3>{{ p.title }}</h3>
+        <p class="desc">{{ p.description }}</p>
+        <div class="card-footer">
+          <span class="price">৳{{ '%d'|format(p.price_bdt|int) }}</span>
+          <span class="stock-note">Instant delivery</span>
+        </div>
+        <a class="btn btn-primary btn-block" href="/product/{{ p.id }}">
+          View details
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+        </a>
       </div>
-      <a class="btn btn-primary btn-block" href="/product/{{ p.id }}">
-        View details
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
-      </a>
     </article>
     {% endfor %}
   </div>
@@ -58,7 +66,7 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.4 10.2A2 2 0 0 1 17.6 21H6.4a2 2 0 0 1-2-1.8L3 9z"/><path d="M8 9V6.5a4 4 0 0 1 8 0V9"/></svg>
     </span>
     <h3>No products found</h3>
-    <p>Check back soon for new products, or clear the filter to see everything.</p>
+    <p>Nothing in this category yet. Browse everything or check back soon for new arrivals.</p>
     <a class="btn btn-primary mt-8" href="/shop">Browse all products</a>
   </div>
   {% endif %}

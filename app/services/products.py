@@ -28,11 +28,11 @@ def add_product(platform, title, description, price_bdt, admin_id=None):
         raise ValueError("Price must be positive")
     conn = get_connection()
     cur = conn.execute(
-        "INSERT INTO products (platform, title, description, price_bdt, is_active, created_at) VALUES (?,?,?,?,1,?)",
+        "INSERT INTO products (platform, title, description, price_bdt, is_active, created_at) VALUES (?,?,?,?,1,?) RETURNING id",
         (platform, title.strip(), (description or "").strip(), price, now_iso()),
     )
+    product_id = cur.fetchone()["id"]
     conn.commit()
-    product_id = cur.lastrowid
     conn.close()
     if admin_id is not None:
         log_admin_action(admin_id, "product_add", "product", product_id, f"{platform}: {title} @ {price}")
@@ -87,7 +87,7 @@ def toggle_product(product_id, admin_id=None):
 
 def delete_product(product_id, admin_id=None):
     conn = get_connection()
-    count = conn.execute("SELECT COUNT(*) FROM inventory WHERE product_id = ?", (product_id,)).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE product_id = ?", (product_id,)).fetchone()["n"]
     if count > 0:
         conn.close()
         raise ValueError("Product has inventory units — delete inventory first")

@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 """
 Self-test for core services without a real Telegram bot.
-Run: python selftest.py
-Uses a temporary database at /tmp/selftest.db.
+
+Run against a disposable PostgreSQL database:
+    SELFTEST_DATABASE_URL=postgresql://user:pass@localhost:5432/selftest python selftest.py
+
+The target database is wiped at the start of the run.
 """
 import os
 import sys
-import tempfile
 
 # Set env BEFORE importing app modules
-os.environ["DATABASE_PATH"] = "/tmp/selftest.db"
+test_url = os.environ.get("SELFTEST_DATABASE_URL")
+if not test_url:
+    sys.exit(
+        "Set SELFTEST_DATABASE_URL to a disposable PostgreSQL database, e.g.\n"
+        "  SELFTEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/selftest python selftest.py"
+    )
+os.environ["DATABASE_URL"] = test_url
 os.environ["BOT_TOKEN"] = "dummy"
 os.environ["SEED_DEMO"] = "false"
 os.environ["ADMIN_IDS"] = "111111111"
@@ -30,17 +38,28 @@ from app.services import (
     products as products_svc,
 )
 
-def cleanup():
-    if os.path.exists("/tmp/selftest.db"):
-        os.remove("/tmp/selftest.db")
+def reset_db():
+    conn = get_connection()
+    conn.execute(
+        "TRUNCATE users, products, inventory, orders, order_items, order_inventory, "
+        "payment_proofs, settings, admin_actions RESTART IDENTITY CASCADE"
+    )
+    conn.commit()
+    conn.close()
 
 def test_basic():
     print("=== Initializing DB ===")
     init_db()
-    
+    reset_db()
+
+    # Re-seed settings after the reset
+    from app.database import set_setting
+    set_setting("admin_ids", "111111111")
+    set_setting("expiry_minutes", "30")
+
     # Check demo products not seeded (SEED_DEMO=false)
     conn = get_connection()
-    cnt = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
+    cnt = conn.execute("SELECT COUNT(*) AS n FROM products").fetchone()["n"]
     assert cnt == 0, f"Expected 0 products, got {cnt}"
     conn.close()
     print("✓ DB initialized, no demo products")
@@ -119,8 +138,8 @@ def test_basic():
 
     # Inventory assigned + sold
     conn = get_connection()
-    sold = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='sold' AND product_id=1").fetchone()[0]
-    avail = conn.execute("SELECT COUNT(*) FROM inventory WHERE status='available' AND product_id=1").fetchone()[0]
+    sold = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='sold' AND product_id=1").fetchone()["n"]
+    avail = conn.execute("SELECT COUNT(*) AS n FROM inventory WHERE status='available' AND product_id=1").fetchone()["n"]
     conn.close()
     assert sold == 2
     assert avail == 1
@@ -180,7 +199,4 @@ def test_basic():
     print("\n=== ALL TESTS PASSED ===")
 
 if __name__ == "__main__":
-    try:
-        test_basic()
-    finally:
-        cleanup()
+    test_basic()
